@@ -1,0 +1,327 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222.2 84% 4.9%;
+        --primary: 142.1 76.2% 36.3%;
+        --primary-foreground: 355.7 100% 97.3%;
+        --secondary: 210 40% 98%;
+        --secondary-foreground: 222.2 84% 4.9%;
+        --muted: 210 40% 96%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96%;
+        --accent-foreground: 222.2 84% 4.9%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 142.1 76.2% 36.3%;
+        --radius: 0.5rem;
+    }
+
+    .dark {
+        --background: 222.2 84% 4.9%;
+        --foreground: 210 40% 98%;
+        --card: 222.2 84% 4.9%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222.2 84% 4.9%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 142.1 70.6% 45.3%;
+        --primary-foreground: 144.9 80.4% 10%;
+        --secondary: 217.2 32.6% 17.5%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+        --accent: 217.2 32.6% 17.5%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+        --ring: 142.4 71.8% 29.2%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-gray-200;
+    }
+
+    body {
+        @apply bg-gray-50 text-gray-900;
+        font-feature-settings: "rlig" 1, "calt" 1;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+}
+
+@layer components {
+
+    /* 自定義組件樣式 */
+    .btn {
+        @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+    }
+
+    .btn-primary {
+        @apply btn bg-primary-600 text-white hover:bg-primary-700 h-10 py-2 px-4;
+    }
+
+    .btn-secondary {
+        @apply btn bg-gray-200 text-gray-900 hover:bg-gray-300 h-10 py-2 px-4;
+    }
+
+    .btn-destructive {
+        @apply btn bg-red-600 text-white hover:bg-red-700 h-10 py-2 px-4;
+    }
+
+    .btn-outline {
+        @apply btn border border-gray-300 bg-white hover:bg-gray-50 hover:text-gray-900 h-10 py-2 px-4;
+    }
+
+    .btn-ghost {
+        @apply btn hover:bg-gray-100 hover:text-gray-900 h-10 py-2 px-4;
+    }
+
+    .btn-link {
+        @apply btn underline-offset-4 hover:underline text-primary-600 h-10 py-2 px-4;
+    }
+
+    .card {
+        @apply rounded-lg border border-gray-200 bg-white text-gray-900 shadow-sm;
+    }
+
+    .card-header {
+        @apply flex flex-col space-y-1.5 p-6;
+    }
+
+    .card-title {
+        @apply text-2xl font-semibold leading-none tracking-tight;
+    }
+
+    .card-description {
+        @apply text-sm text-gray-600;
+    }
+
+    .card-content {
+        @apply p-6 pt-0;
+    }
+
+    .card-footer {
+        @apply flex items-center p-6 pt-0;
+    }
+
+    .input {
+        @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .label {
+        @apply text-sm font-medium leading-none text-gray-700;
+    }
+
+    .select {
+        @apply flex h-10 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .textarea {
+        @apply flex min-h-[80px] w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .badge {
+        @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    }
+
+    .badge-default {
+        @apply badge border-transparent bg-primary-600 text-white hover:bg-primary-700;
+    }
+
+    .badge-secondary {
+        @apply badge border-transparent bg-gray-200 text-gray-900 hover:bg-gray-300;
+    }
+
+    .badge-destructive {
+        @apply badge border-transparent bg-red-600 text-white hover:bg-red-700;
+    }
+
+    .badge-outline {
+        @apply badge text-gray-900 border-gray-300;
+    }
+
+    /* 自定義動畫 */
+    .animate-slide-up {
+        animation: slideUp 0.3s ease-out;
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .animate-scale-in {
+        animation: scaleIn 0.2s ease-out;
+    }
+
+    /* 響應式隱藏/顯示 */
+    .mobile-only {
+        @apply block md:hidden;
+    }
+
+    .desktop-only {
+        @apply hidden md:block;
+    }
+
+    /* 題目選項樣式 */
+    .question-option {
+        @apply p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 hover:border-primary-500;
+    }
+
+    .question-option.selected {
+        @apply bg-primary-50 border-primary-500 text-primary-700;
+    }
+
+    .question-option.correct {
+        @apply bg-green-50 border-green-500 text-green-700;
+    }
+
+    .question-option.incorrect {
+        @apply bg-red-50 border-red-500 text-red-700;
+    }
+
+    /* 統計卡片樣式 */
+    .stats-card {
+        @apply card p-6 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-shadow;
+    }
+
+    .stats-card.primary {
+        @apply from-primary-50 to-primary-100;
+    }
+
+    .stats-card.secondary {
+        @apply from-blue-50 to-blue-100;
+    }
+
+    .stats-card.success {
+        @apply from-green-50 to-green-100;
+    }
+
+    .stats-card.warning {
+        @apply from-yellow-50 to-yellow-100;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 全域樣式調整 */
+.container {
+    @apply mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.section-padding {
+    @apply py-8 md:py-12 lg:py-16;
+}
+
+/* PDF 顯示器樣式 */
+.pdf-viewer {
+    @apply border border-gray-200 rounded-lg overflow-hidden;
+}
+
+.pdf-page {
+    @apply w-full;
+}
+
+/* 圖表容器 */
+.chart-container {
+    @apply w-full h-64 md:h-80;
+}
+
+/* 排行榜樣式 */
+.leaderboard-item {
+    @apply flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors;
+}
+
+.leaderboard-item:last-child {
+    @apply border-b-0;
+}
+
+.rank-badge {
+    @apply w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white;
+}
+
+.rank-badge.gold {
+    @apply bg-yellow-500;
+}
+
+.rank-badge.silver {
+    @apply bg-gray-400;
+}
+
+.rank-badge.bronze {
+    @apply bg-orange-600;
+}
+
+.rank-badge.default {
+    @apply bg-primary-600;
+}
+
+/* 載入動畫 */
+.loading-spinner {
+    @apply animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600;
+}
+
+.loading-dots::after {
+    content: '';
+    animation: loading-dots 1.5s infinite;
+}
+
+@keyframes loading-dots {
+
+    0%,
+    20% {
+        content: '.';
+    }
+
+    40% {
+        content: '..';
+    }
+
+    60%,
+    100% {
+        content: '...';
+    }
+}
