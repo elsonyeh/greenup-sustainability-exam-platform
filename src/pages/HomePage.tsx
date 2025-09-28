@@ -74,7 +74,7 @@ export default function HomePage() {
         <div className="space-y-8">
             {/* 歡迎區塊 */}
             <div className="bg-gradient-to-r from-primary to-green-600 rounded-xl p-8 text-white">
-                <div className="max-w-4xl">
+                <div>
                     <h1 className="text-3xl md:text-4xl font-bold mb-4">
                         歡迎回來，{profile?.full_name || '學習者'}！
                     </h1>

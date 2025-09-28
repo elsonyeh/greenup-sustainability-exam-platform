@@ -152,7 +152,9 @@ export default function Layout() {
 
                 {/* 頁面內容 */}
                 <main className="p-4 sm:p-6 lg:p-8">
-                    <Outlet />
+                    <div className="max-w-6xl mx-auto">
+                        <Outlet />
+                    </div>
                 </main>
             </div>
         </div>

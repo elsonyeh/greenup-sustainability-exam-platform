@@ -80,7 +80,7 @@ export default function LeaderboardPage() {
             </div>
 
             {/* 頂部三名 */}
-            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-3 gap-6">
                 {currentData.slice(0, 3).map((user, index) => {
                     const actualRank = user.rank
                     return (
@@ -140,7 +140,7 @@ export default function LeaderboardPage() {
             </div>
 
             {/* 完整排行榜 */}
-            <div className="card max-w-4xl mx-auto">
+            <div className="card">
                 <div className="card-header">
                     <h3 className="card-title flex items-center">
                         <Trophy className="h-5 w-5 mr-2" />
@@ -204,7 +204,7 @@ export default function LeaderboardPage() {
             </div>
 
             {/* 激勵信息 */}
-            <div className="bg-gradient-to-r from-primary/10 to-green-100 rounded-xl p-6 max-w-4xl mx-auto">
+            <div className="bg-gradient-to-r from-primary/10 to-green-100 rounded-xl p-6">
                 <div className="text-center">
                     <Trophy className="h-12 w-12 text-primary mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">

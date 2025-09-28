@@ -205,7 +205,7 @@ export default function PracticePage() {
         const results = calculateResults()
 
         return (
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-2xl mx-auto">
                 <div className="card text-center">
                     <div className="card-content">
                         <div className="mb-8">
@@ -278,7 +278,7 @@ export default function PracticePage() {
 
     // 練習進行中
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
             {/* 頂部進度條 */}
             <div className="card mb-6">
                 <div className="card-content">
