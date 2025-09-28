@@ -60,8 +60,8 @@ export async function processPDFWithOCR(
     language = 'chi_tra',
     enableImageOCR = true,
     enableTextExtraction = true,
-    ocrEngine = Tesseract.OEM.LSTM_ONLY,
-    pageSegmentationMode = Tesseract.PSM.AUTO
+    // ocrEngine = Tesseract.OEM.LSTM_ONLY,
+    // pageSegmentationMode = Tesseract.PSM.AUTO
   } = options
 
   try {

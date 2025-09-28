@@ -7,7 +7,7 @@ import {
     BarChart3,
     Trophy,
     User,
-    Settings,
+    // Settings,
     LogOut,
     Menu,
     X,

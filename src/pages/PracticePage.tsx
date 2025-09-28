@@ -44,9 +44,9 @@ const mockQuestions = [
 ]
 
 export default function PracticePage() {
-    const { sessionId } = useParams()
+    const { sessionId: _sessionId } = useParams()
     const navigate = useNavigate()
-    const { profile } = useAuth()
+    const { profile: _profile } = useAuth()
 
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)

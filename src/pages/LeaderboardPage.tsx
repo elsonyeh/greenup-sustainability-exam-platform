@@ -24,7 +24,7 @@ const weeklyLeaderboard = [
 ]
 
 export default function LeaderboardPage() {
-    const { profile } = useAuth()
+    const { profile: _profile } = useAuth()
     const [activeTab, setActiveTab] = useState('daily')
 
     const tabs = [

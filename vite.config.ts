@@ -11,15 +11,14 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['pdfjs-dist/build/pdf.worker.entry']
+    include: ['pdfjs-dist']
   },
   build: {
     rollupOptions: {
-      output: {
-        manualChunks: {
-          'pdf-worker': ['pdfjs-dist/build/pdf.worker.entry']
-        }
-      }
+      external: ['pdfjs-dist/build/pdf.worker.entry']
     }
+  },
+  define: {
+    global: 'globalThis'
   }
 }) 

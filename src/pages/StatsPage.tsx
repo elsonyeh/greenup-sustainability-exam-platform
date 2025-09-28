@@ -62,7 +62,7 @@ const weeklyProgress = [
 ]
 
 export default function StatsPage() {
-    const { profile } = useAuth()
+    const { profile: _profile } = useAuth()
     const [activeTab, setActiveTab] = useState('overview')
 
     const overallStats = {
