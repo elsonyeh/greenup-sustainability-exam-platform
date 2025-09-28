@@ -36,51 +36,51 @@ const QuestionBank: React.FC = () => {
   ]
 
   return (
-    <div className=\"space-y-6\">
+    <div className="space-y-6">
       {/* 頂部操作區 */}
-      <div className=\"flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4\">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h2 className=\"text-3xl font-bold text-gray-800\">題庫管理</h2>
-          <p className=\"text-gray-600 mt-1\">管理永續發展基礎能力測驗題庫</p>
+          <h2 className="text-3xl font-bold text-gray-800">題庫管理</h2>
+          <p className="text-gray-600 mt-1">管理永續發展基礎能力測驗題庫</p>
         </div>
 
-        <div className=\"flex flex-col sm:flex-row gap-3\">
-          <button className=\"btn btn-outline flex items-center gap-2\">
-            <Download className=\"w-5 h-5\" />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button className="btn btn-outline flex items-center gap-2">
+            <Download className="w-5 h-5" />
             匯出題庫
           </button>
-          <button className=\"btn btn-outline flex items-center gap-2\">
-            <Upload className=\"w-5 h-5\" />
+          <button className="btn btn-outline flex items-center gap-2">
+            <Upload className="w-5 h-5" />
             匯入題庫
           </button>
-          <button className=\"btn btn-primary flex items-center gap-2\">
-            <Plus className=\"w-5 h-5\" />
+          <button className="btn btn-primary flex items-center gap-2">
+            <Plus className="w-5 h-5" />
             新增題目
           </button>
         </div>
       </div>
 
       {/* 搜索和篩選 */}
-      <div className=\"bg-white rounded-lg shadow-md p-6\">
-        <div className=\"flex flex-col lg:flex-row gap-4\">
-          <div className=\"flex-1\">
-            <div className=\"relative\">
-              <Search className=\"absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5\" />
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                type=\"text\"
-                placeholder=\"搜索題目內容...\"
+                type="text"
+                placeholder="搜索題目內容..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className=\"w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent\"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
           </div>
 
-          <div className=\"flex gap-3\">
+          <div className="flex gap-3">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className=\"px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary\"
+              className="px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -89,8 +89,8 @@ const QuestionBank: React.FC = () => {
               ))}
             </select>
 
-            <button className=\"btn btn-outline flex items-center gap-2\">
-              <Filter className=\"w-5 h-5\" />
+            <button className="btn btn-outline flex items-center gap-2">
+              <Filter className="w-5 h-5" />
               進階篩選
             </button>
           </div>
@@ -98,81 +98,81 @@ const QuestionBank: React.FC = () => {
       </div>
 
       {/* 統計卡片 */}
-      <div className=\"grid grid-cols-1 md:grid-cols-4 gap-6\">
-        <div className=\"bg-white rounded-lg shadow-md p-6\">
-          <div className=\"flex items-center justify-between\">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
             <div>
-              <p className=\"text-sm text-gray-600\">總題目數</p>
-              <p className=\"text-2xl font-bold text-primary\">1,250</p>
+              <p className="text-sm text-gray-600">總題目數</p>
+              <p className="text-2xl font-bold text-primary">1,250</p>
             </div>
-            <BookOpen className=\"w-8 h-8 text-primary\" />
+            <BookOpen className="w-8 h-8 text-primary" />
           </div>
         </div>
 
-        <div className=\"bg-white rounded-lg shadow-md p-6\">
-          <div className=\"flex items-center justify-between\">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
             <div>
-              <p className=\"text-sm text-gray-600\">本月新增</p>
-              <p className=\"text-2xl font-bold text-green-600\">45</p>
+              <p className="text-sm text-gray-600">本月新增</p>
+              <p className="text-2xl font-bold text-green-600">45</p>
             </div>
-            <Plus className=\"w-8 h-8 text-green-600\" />
+            <Plus className="w-8 h-8 text-green-600" />
           </div>
         </div>
 
-        <div className=\"bg-white rounded-lg shadow-md p-6\">
-          <div className=\"flex items-center justify-between\">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
             <div>
-              <p className=\"text-sm text-gray-600\">待審核</p>
-              <p className=\"text-2xl font-bold text-orange-600\">12</p>
+              <p className="text-sm text-gray-600">待審核</p>
+              <p className="text-2xl font-bold text-orange-600">12</p>
             </div>
-            <Edit className=\"w-8 h-8 text-orange-600\" />
+            <Edit className="w-8 h-8 text-orange-600" />
           </div>
         </div>
 
-        <div className=\"bg-white rounded-lg shadow-md p-6\">
-          <div className=\"flex items-center justify-between\">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
             <div>
-              <p className=\"text-sm text-gray-600\">平均難度</p>
-              <p className=\"text-2xl font-bold text-blue-600\">3.2</p>
+              <p className="text-sm text-gray-600">平均難度</p>
+              <p className="text-2xl font-bold text-blue-600">3.2</p>
             </div>
-            <Filter className=\"w-8 h-8 text-blue-600\" />
+            <Filter className="w-8 h-8 text-blue-600" />
           </div>
         </div>
       </div>
 
       {/* 題目列表 */}
-      <div className=\"bg-white rounded-lg shadow-md overflow-hidden\">
-        <div className=\"overflow-x-auto\">
-          <table className=\"w-full\">
-            <thead className=\"bg-gray-50 border-b border-gray-200\">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className=\"px-6 py-4 text-left text-sm font-medium text-gray-600\">題目</th>
-                <th className=\"px-6 py-4 text-left text-sm font-medium text-gray-600\">分類</th>
-                <th className=\"px-6 py-4 text-left text-sm font-medium text-gray-600\">難度</th>
-                <th className=\"px-6 py-4 text-left text-sm font-medium text-gray-600\">年度</th>
-                <th className=\"px-6 py-4 text-left text-sm font-medium text-gray-600\">操作</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">題目</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">分類</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">難度</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">年度</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">操作</th>
               </tr>
             </thead>
-            <tbody className=\"divide-y divide-gray-200\">
+            <tbody className="divide-y divide-gray-200">
               {questions.map((question) => (
-                <tr key={question.id} className=\"hover:bg-gray-50\">
-                  <td className=\"px-6 py-4\">
-                    <div className=\"max-w-md\">
-                      <p className=\"text-gray-800 font-medium line-clamp-2\">
+                <tr key={question.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="max-w-md">
+                      <p className="text-gray-800 font-medium line-clamp-2">
                         {question.question_text}
                       </p>
-                      <p className=\"text-sm text-gray-500 mt-1\">
+                      <p className="text-sm text-gray-500 mt-1">
                         ID: {question.id}
                       </p>
                     </div>
                   </td>
-                  <td className=\"px-6 py-4\">
-                    <span className=\"px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm\">
+                  <td className="px-6 py-4">
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                       {question.category}
                     </span>
                   </td>
-                  <td className=\"px-6 py-4\">
-                    <div className=\"flex items-center gap-1\">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1">
                       {[...Array(5)].map((_, i) => (
                         <div
                           key={i}
@@ -183,16 +183,16 @@ const QuestionBank: React.FC = () => {
                       ))}
                     </div>
                   </td>
-                  <td className=\"px-6 py-4 text-gray-600\">
+                  <td className="px-6 py-4 text-gray-600">
                     {question.year}
                   </td>
-                  <td className=\"px-6 py-4\">
-                    <div className=\"flex items-center gap-2\">
-                      <button className=\"p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors\">
-                        <Edit className=\"w-4 h-4\" />
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Edit className="w-4 h-4" />
                       </button>
-                      <button className=\"p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors\">
-                        <Trash2 className=\"w-4 h-4\" />
+                      <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -203,29 +203,29 @@ const QuestionBank: React.FC = () => {
         </div>
 
         {/* 分頁 */}
-        <div className=\"px-6 py-4 border-t border-gray-200\">
-          <div className=\"flex items-center justify-between\">
-            <div className=\"text-sm text-gray-600\">
+        <div className="px-6 py-4 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
               顯示 1-10 筆，共 1,250 筆結果
             </div>
-            <div className=\"flex items-center gap-2\">
-              <button className=\"px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors\">
+            <div className="flex items-center gap-2">
+              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                 上一頁
               </button>
-              <button className=\"px-3 py-2 bg-primary text-white rounded-lg\">
+              <button className="px-3 py-2 bg-primary text-white rounded-lg">
                 1
               </button>
-              <button className=\"px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors\">
+              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                 2
               </button>
-              <button className=\"px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors\">
+              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                 3
               </button>
-              <span className=\"px-3 py-2 text-gray-600\">...</span>
-              <button className=\"px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors\">
+              <span className="px-3 py-2 text-gray-600">...</span>
+              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                 125
               </button>
-              <button className=\"px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors\">
+              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                 下一頁
               </button>
             </div>
@@ -236,4 +236,4 @@ const QuestionBank: React.FC = () => {
   )
 }
 
-export default QuestionBank"
+export default QuestionBank

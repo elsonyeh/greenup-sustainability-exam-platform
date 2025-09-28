@@ -120,7 +120,7 @@ export const questionService = {
 
         results.push({ success: true, question_id: question.id })
       } catch (error) {
-        results.push({ success: false, error: error.message })
+        results.push({ success: false, error: (error as Error).message })
       }
     }
 
