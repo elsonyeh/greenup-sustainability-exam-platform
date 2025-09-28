@@ -50,7 +50,7 @@ export default function Layout() {
             )}
 
             {/* 側邊欄 */}
-            <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}>
                 <div className="flex items-center justify-between p-4 border-b">
                     <h1 className="text-xl font-bold text-primary">永續測驗平台</h1>
@@ -128,7 +128,7 @@ export default function Layout() {
             <div className="md:pl-64">
                 {/* 頂部導航列 */}
                 <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-                    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="px-4 sm:px-6 lg:px-8">
                         <div className="flex justify-between items-center h-16">
                             <button
                                 className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
@@ -152,7 +152,7 @@ export default function Layout() {
 
                 {/* 頁面內容 */}
                 <main className="p-4 sm:p-6 lg:p-8">
-                    <div className="max-w-6xl mx-auto">
+                    <div className="max-w-5xl mx-auto">
                         <Outlet />
                     </div>
                 </main>
