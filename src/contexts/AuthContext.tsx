@@ -14,6 +14,7 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<{ error: any }>
     signOut: () => Promise<void>
     updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>
+    handleAuthError: (error: any) => Promise<boolean>
     isAdmin: boolean
 }
 
@@ -29,7 +30,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 取得初始認證狀態
         const getInitialAuth = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession()
+                const { data: { session }, error } = await supabase.auth.getSession()
+
+                if (error) {
+                    console.error('Error getting session:', error)
+                    // 如果是 refresh token 錯誤，清除本地 session
+                    if (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found')) {
+                        await supabase.auth.signOut()
+                        setSession(null)
+                        setUser(null)
+                        setProfile(null)
+                        return
+                    }
+                }
+
                 setSession(session)
                 setUser(session?.user ?? null)
 
@@ -38,6 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             } catch (error) {
                 console.error('Error getting initial auth state:', error)
+                // 任何獲取 session 的錯誤都清除認證狀態
+                await supabase.auth.signOut()
+                setSession(null)
+                setUser(null)
+                setProfile(null)
             } finally {
                 setLoading(false)
             }
@@ -47,7 +66,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // 監聽認證狀態變化
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (_event, session) => {
+            async (event, session) => {
+                console.log('Auth state changed:', event, session)
+
+                // 處理認證錯誤事件
+                if (event === 'TOKEN_REFRESHED' && !session) {
+                    console.log('Token refresh failed, signing out')
+                    await supabase.auth.signOut()
+                }
+
                 setSession(session)
                 setUser(session?.user ?? null)
 
@@ -75,12 +102,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (error) {
                 console.error('Error fetching profile:', error)
+                // 檢查是否為認證錯誤
+                if (await handleAuthError(error)) {
+                    return
+                }
                 return
             }
 
             setProfile(data)
         } catch (error) {
             console.error('Error fetching profile:', error)
+            await handleAuthError(error)
         }
     }
 
@@ -129,6 +161,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    // 處理認證錯誤
+    const handleAuthError = async (error: any) => {
+        if (error?.message?.includes('Invalid Refresh Token') ||
+            error?.message?.includes('Refresh Token Not Found') ||
+            error?.message?.includes('JWT expired') ||
+            error?.code === 'invalid_jwt') {
+            console.log('Authentication error detected, signing out:', error.message)
+            await signOut()
+            return true
+        }
+        return false
+    }
+
     // 更新使用者資料
     const updateProfile = async (updates: Partial<Profile>) => {
         try {
@@ -163,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         updateProfile,
+        handleAuthError,
         isAdmin,
     }
 
