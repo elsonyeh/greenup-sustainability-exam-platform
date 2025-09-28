@@ -1,236 +1,306 @@
 import React, { useState } from 'react'
-import { Search, Filter, Plus, Edit, Trash2, BookOpen, Download, Upload } from 'lucide-react'
+import {
+  Search,
+  Filter,
+  BookOpen,
+  Clock,
+  Star,
+  CheckCircle,
+  AlertCircle,
+  Edit3,
+  Trash2,
+  Plus
+} from 'lucide-react'
 
 const QuestionBank: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedDifficulty, setSelectedDifficulty] = useState('all')
 
-  // 模擬題目資料
+  // 模擬題目數據
+  const categories = [
+    { id: 'all', name: '全部分類', count: 1250 },
+    { id: 'environment', name: '環境永續', count: 350 },
+    { id: 'social', name: '社會永續', count: 280 },
+    { id: 'economic', name: '經濟永續', count: 310 },
+    { id: 'governance', name: '治理永續', count: 220 },
+    { id: 'esg', name: 'ESG 整合', count: 90 }
+  ]
+
   const questions = [
     {
       id: 1,
-      question_text: "若投資決策對於永續造成「主要不利衝擊」(PAIs)須加以揭露；這是屬於下列哪方面的資訊揭露？",
-      category: "經濟永續",
-      difficulty: 3,
-      year: 2023,
-      correct_answer: 2,
-      options: ["永續性風險政策", "產品的獲利性揭露", "不利的永續性影響", "產品級別揭露"]
+      question: '關於碳中和的敘述，下列何者正確？',
+      category: '環境永續',
+      difficulty: 2,
+      type: 'multiple_choice',
+      options: [
+        '碳中和是指完全不產生任何碳排放',
+        '透過碳抵消機制達到淨零碳排放',
+        '只要使用再生能源就能達到碳中和',
+        '碳中和等同於零碳排放'
+      ],
+      correct_answer: 1,
+      tags: ['碳中和', '氣候變遷', '碳抵消'],
+      created_at: '2024-01-15',
+      attempts: 342,
+      success_rate: 78
     },
     {
       id: 2,
-      question_text: "我國推動上市櫃公司永續發展行動方案，擴大永續資訊揭露範圍，將自哪一年推動20億元以下的上市櫃公司編製永續報告書？",
-      category: "治理永續",
-      difficulty: 2,
-      year: 2023,
-      correct_answer: 3,
-      options: ["2023年", "2024年", "2025年", "2026年"]
+      question: 'ESG 投資策略中，下列何者屬於社會面向 (S) 的考量？',
+      category: '社會永續',
+      difficulty: 1,
+      type: 'multiple_choice',
+      options: [
+        '公司治理結構',
+        '員工多元化政策',
+        '溫室氣體排放',
+        '財務透明度'
+      ],
+      correct_answer: 1,
+      tags: ['ESG', '社會責任', '多元化'],
+      created_at: '2024-01-14',
+      attempts: 289,
+      success_rate: 85
+    },
+    {
+      id: 3,
+      question: '循環經濟的核心原則不包括下列何者？',
+      category: '經濟永續',
+      difficulty: 3,
+      type: 'multiple_choice',
+      options: [
+        '減少資源消耗',
+        '重複使用材料',
+        '線性生產模式',
+        '回收再利用'
+      ],
+      correct_answer: 2,
+      tags: ['循環經濟', '資源管理', '永續發展'],
+      created_at: '2024-01-13',
+      attempts: 195,
+      success_rate: 65
     }
   ]
 
-  const categories = [
-    { id: 'all', name: '全部分類', count: 1250 },
-    { id: 'environmental', name: '環境永續', count: 320 },
-    { id: 'social', name: '社會永續', count: 285 },
-    { id: 'economic', name: '經濟永續', count: 410 },
-    { id: 'governance', name: '治理永續', count: 235 }
-  ]
+  const getDifficultyLabel = (level: number) => {
+    const labels = ['', '基礎', '中等', '進階', '困難', '專家']
+    return labels[level] || '未知'
+  }
+
+  const getDifficultyColor = (level: number) => {
+    const colors = ['', 'text-green-600 bg-green-100', 'text-blue-600 bg-blue-100', 'text-orange-600 bg-orange-100', 'text-red-600 bg-red-100', 'text-purple-600 bg-purple-100']
+    return colors[level] || 'text-gray-600 bg-gray-100'
+  }
+
+  const filteredQuestions = questions.filter(question => {
+    const matchesSearch = question.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         question.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+    const matchesCategory = selectedCategory === 'all' || question.category === categories.find(c => c.id === selectedCategory)?.name
+    const matchesDifficulty = selectedDifficulty === 'all' || question.difficulty.toString() === selectedDifficulty
+
+    return matchesSearch && matchesCategory && matchesDifficulty
+  })
 
   return (
     <div className="space-y-6">
       {/* 頂部操作區 */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-800">題庫管理</h2>
-          <p className="text-gray-600 mt-1">管理永續發展基礎能力測驗題庫</p>
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">題庫管理</h2>
+          <p className="text-gray-600">瀏覽和管理永續發展基礎能力測驗題庫</p>
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button className="btn btn-outline flex items-center gap-2">
-            <Download className="w-5 h-5" />
-            匯出題庫
-          </button>
-          <button className="btn btn-outline flex items-center gap-2">
-            <Upload className="w-5 h-5" />
-            匯入題庫
-          </button>
-          <button className="btn btn-primary flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            新增題目
-          </button>
-        </div>
-      </div>
-
-      {/* 搜索和篩選 */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="搜索題目內容..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name} ({category.count})
-                </option>
-              ))}
-            </select>
-
-            <button className="btn btn-outline flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              進階篩選
-            </button>
-          </div>
-        </div>
+        <button className="btn btn-primary flex items-center gap-2">
+          <Plus className="w-5 h-5" />
+          新增題目
+        </button>
       </div>
 
       {/* 統計卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center gap-3">
+            <BookOpen className="w-8 h-8 text-blue-600" />
             <div>
+              <p className="text-2xl font-bold text-gray-800">1,250</p>
               <p className="text-sm text-gray-600">總題目數</p>
-              <p className="text-2xl font-bold text-primary">1,250</p>
             </div>
-            <BookOpen className="w-8 h-8 text-primary" />
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-8 h-8 text-green-600" />
             <div>
-              <p className="text-sm text-gray-600">本月新增</p>
-              <p className="text-2xl font-bold text-green-600">45</p>
+              <p className="text-2xl font-bold text-gray-800">1,185</p>
+              <p className="text-sm text-gray-600">已審核</p>
             </div>
-            <Plus className="w-8 h-8 text-green-600" />
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-8 h-8 text-orange-600" />
             <div>
+              <p className="text-2xl font-bold text-gray-800">65</p>
               <p className="text-sm text-gray-600">待審核</p>
-              <p className="text-2xl font-bold text-orange-600">12</p>
             </div>
-            <Edit className="w-8 h-8 text-orange-600" />
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center gap-3">
+            <Star className="w-8 h-8 text-yellow-600" />
             <div>
-              <p className="text-sm text-gray-600">平均難度</p>
-              <p className="text-2xl font-bold text-blue-600">3.2</p>
+              <p className="text-2xl font-bold text-gray-800">78%</p>
+              <p className="text-sm text-gray-600">平均正確率</p>
             </div>
-            <Filter className="w-8 h-8 text-blue-600" />
           </div>
+        </div>
+      </div>
+
+      {/* 搜尋和篩選 */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="搜尋題目內容或標籤..."
+              className="input pl-10 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <select
+            className="input"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+          >
+            {categories.map(category => (
+              <option key={category.id} value={category.id}>
+                {category.name} ({category.count})
+              </option>
+            ))}
+          </select>
+          <select
+            className="input"
+            value={selectedDifficulty}
+            onChange={(e) => setSelectedDifficulty(e.target.value)}
+          >
+            <option value="all">所有難度</option>
+            <option value="1">基礎</option>
+            <option value="2">中等</option>
+            <option value="3">進階</option>
+            <option value="4">困難</option>
+            <option value="5">專家</option>
+          </select>
         </div>
       </div>
 
       {/* 題目列表 */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">題目</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">分類</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">難度</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">年度</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {questions.map((question) => (
-                <tr key={question.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="max-w-md">
-                      <p className="text-gray-800 font-medium line-clamp-2">
-                        {question.question_text}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        ID: {question.id}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                      {question.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-3 h-3 rounded-full ${
-                            i < question.difficulty ? 'bg-primary' : 'bg-gray-200'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    {question.year}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* 分頁 */}
-        <div className="px-6 py-4 border-t border-gray-200">
+      <div className="bg-white rounded-lg shadow-md">
+        <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              顯示 1-10 筆，共 1,250 筆結果
-            </div>
-            <div className="flex items-center gap-2">
-              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                上一頁
-              </button>
-              <button className="px-3 py-2 bg-primary text-white rounded-lg">
-                1
-              </button>
-              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                2
-              </button>
-              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                3
-              </button>
-              <span className="px-3 py-2 text-gray-600">...</span>
-              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                125
-              </button>
-              <button className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                下一頁
-              </button>
+            <h3 className="text-lg font-semibold text-gray-800">
+              題目列表 ({filteredQuestions.length} 題)
+            </h3>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Filter className="w-4 h-4" />
+              已套用篩選條件
             </div>
           </div>
         </div>
+
+        <div className="divide-y divide-gray-200">
+          {filteredQuestions.map((question) => (
+            <div key={question.id} className="p-6 hover:bg-gray-50 transition-colors">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                      {question.category}
+                    </span>
+                    <span className={`px-3 py-1 text-sm rounded-full ${getDifficultyColor(question.difficulty)}`}>
+                      {getDifficultyLabel(question.difficulty)}
+                    </span>
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
+                      {question.type === 'multiple_choice' ? '選擇題' : '其他'}
+                    </span>
+                  </div>
+
+                  <h4 className="text-lg font-medium text-gray-800 mb-3">
+                    {question.question}
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                    {question.options.map((option, index) => (
+                      <div
+                        key={index}
+                        className={`p-3 rounded-lg border text-sm ${
+                          index === question.correct_answer
+                            ? 'border-green-500 bg-green-50 text-green-800'
+                            : 'border-gray-200 bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <span className="font-medium">
+                          {String.fromCharCode(65 + index)}.
+                        </span>{' '}
+                        {option}
+                        {index === question.correct_answer && (
+                          <CheckCircle className="w-4 h-4 text-green-600 inline ml-2" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {question.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-full"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-6 text-sm text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      {question.created_at}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <BookOpen className="w-4 h-4" />
+                      {question.attempts} 次作答
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4" />
+                      {question.success_rate}% 正確率
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <button className="btn btn-outline btn-sm flex items-center gap-2">
+                    <Edit3 className="w-4 h-4" />
+                    編輯
+                  </button>
+                  <button className="btn btn-outline btn-sm text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    刪除
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filteredQuestions.length === 0 && (
+          <div className="p-12 text-center">
+            <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-600 mb-2">找不到符合條件的題目</h3>
+            <p className="text-gray-500">請調整搜尋條件或篩選設定</p>
+          </div>
+        )}
       </div>
     </div>
   )

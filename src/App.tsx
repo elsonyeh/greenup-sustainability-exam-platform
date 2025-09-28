@@ -12,7 +12,7 @@ type Page = 'dashboard' | 'practice' | 'questions' | 'statistics' | 'admin'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
-  const [user, setUser] = useState(null) // 待實現用戶認證
+  const [user] = useState(null) // 待實現用戶認證
 
   const renderPage = () => {
     switch (currentPage) {

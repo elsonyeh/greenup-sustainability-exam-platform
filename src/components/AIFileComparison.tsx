@@ -131,7 +131,8 @@ const AIFileComparison: React.FC = () => {
       const total = processed_questions.length
       let imported = 0
 
-      for (const [index, questionData] of processed_questions.entries()) {
+      for (let index = 0; index < processed_questions.length; index++) {
+        const questionData = processed_questions[index]
         try {
           // 找到對應的分類 ID
           const category = categories.find(cat =>

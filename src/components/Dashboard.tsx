@@ -1,65 +1,41 @@
 import React from 'react'
 import {
-  PlayCircle,
-  BookOpen,
-  Target,
   TrendingUp,
-  Clock,
   Award,
-  Users,
-  BarChart3
+  Clock,
+  Target,
+  BookOpen,
+  BarChart3,
+  PlayCircle
 } from 'lucide-react'
 
 const Dashboard: React.FC = () => {
-  // 模擬數據
-  const stats = {
+  // 模擬用戶數據
+  const userStats = {
     totalQuestions: 1250,
-    completedSessions: 23,
-    accuracyRate: 78,
-    studyTime: 145,
-    rank: 12,
-    streak: 7
+    answeredQuestions: 342,
+    correctAnswers: 278,
+    averageScore: 81.2,
+    studyTime: '24小時',
+    streak: 7,
+    rank: 15,
+    totalUsers: 892
   }
 
-  const categories = [
-    {
-      id: 'environmental',
-      name: '環境永續',
-      icon: '🌱',
-      color: 'bg-green-100 text-green-800',
-      progress: 75,
-      questionCount: 320
-    },
-    {
-      id: 'social',
-      name: '社會永續',
-      icon: '👥',
-      color: 'bg-blue-100 text-blue-800',
-      progress: 60,
-      questionCount: 285
-    },
-    {
-      id: 'economic',
-      name: '經濟永續',
-      icon: '💰',
-      color: 'bg-yellow-100 text-yellow-800',
-      progress: 85,
-      questionCount: 410
-    },
-    {
-      id: 'governance',
-      name: '治理永續',
-      icon: '🏛️',
-      color: 'bg-purple-100 text-purple-800',
-      progress: 70,
-      questionCount: 235
-    }
+  const recentProgress = [
+    { category: '環境永續', progress: 85, questions: 45, correct: 38 },
+    { category: '社會永續', progress: 72, questions: 38, correct: 27 },
+    { category: '經濟永續', progress: 68, questions: 42, correct: 29 },
+    { category: '治理永續', progress: 79, questions: 35, correct: 28 },
+    { category: 'ESG 整合', progress: 63, questions: 28, correct: 18 }
   ]
 
-  const recentActivities = [
-    { type: 'practice', category: '環境永續', score: 85, time: '2小時前' },
-    { type: 'practice', category: '經濟永續', score: 92, time: '昨天' },
-    { type: 'practice', category: '治理永續', score: 78, time: '2天前' }
+  const achievements = [
+    { title: '初學者', description: '完成第一次測驗', unlocked: true },
+    { title: '持之以恆', description: '連續練習7天', unlocked: true },
+    { title: '環保先鋒', description: '環境永續類別達到80%', unlocked: true },
+    { title: '學霸', description: '單次測驗滿分', unlocked: false },
+    { title: 'ESG專家', description: '所有類別達到90%', unlocked: false }
   ]
 
   return (
@@ -68,19 +44,21 @@ const Dashboard: React.FC = () => {
       <div className="bg-gradient-to-r from-primary to-primary-light rounded-xl p-8 text-white">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
-            <h2 className="text-3xl font-bold mb-2">歡迎回到 GreenUP！</h2>
-            <p className="text-green-100 text-lg">
-              持續學習永續發展知識，為地球的未來貢獻一份力量
+            <h1 className="text-3xl font-bold mb-2">歡迎回來！</h1>
+            <p className="text-xl opacity-90">
+              繼續您的永續發展學習之旅
+            </p>
+            <p className="text-sm opacity-75 mt-2">
+              您已經連續學習 {userStats.streak} 天，保持這個節奏！
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button className="btn bg-white text-primary hover:bg-gray-50 flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button className="btn btn-white flex items-center gap-2">
               <PlayCircle className="w-5 h-5" />
               開始練習
             </button>
-            <button className="btn btn-outline border-white text-white hover:bg-white hover:text-primary flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              設定目標
+            <button className="btn btn-outline-white">
+              查看進度
             </button>
           </div>
         </div>
@@ -88,192 +66,185 @@ const Dashboard: React.FC = () => {
 
       {/* 統計卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">累計答題數</p>
-              <p className="text-3xl font-bold text-primary">{stats.totalQuestions}</p>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <BookOpen className="w-6 h-6 text-blue-600" />
             </div>
-            <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-white" />
+            <span className="text-2xl font-bold text-gray-800">
+              {userStats.answeredQuestions}
+            </span>
+          </div>
+          <h3 className="text-gray-600 text-sm font-medium">已答題目</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            共 {userStats.totalQuestions} 題
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Target className="w-6 h-6 text-green-600" />
             </div>
+            <span className="text-2xl font-bold text-gray-800">
+              {userStats.averageScore}%
+            </span>
+          </div>
+          <h3 className="text-gray-600 text-sm font-medium">平均得分</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            正確率 {Math.round((userStats.correctAnswers / userStats.answeredQuestions) * 100)}%
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <Clock className="w-6 h-6 text-purple-600" />
+            </div>
+            <span className="text-2xl font-bold text-gray-800">
+              {userStats.studyTime}
+            </span>
+          </div>
+          <h3 className="text-gray-600 text-sm font-medium">學習時間</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            本週累計
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-orange-100 rounded-lg">
+              <Award className="w-6 h-6 text-orange-600" />
+            </div>
+            <span className="text-2xl font-bold text-gray-800">
+              #{userStats.rank}
+            </span>
+          </div>
+          <h3 className="text-gray-600 text-sm font-medium">排名</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            共 {userStats.totalUsers} 位學習者
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* 學習進度 */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-800">學習進度</h2>
+            <BarChart3 className="w-5 h-5 text-gray-500" />
+          </div>
+
+          <div className="space-y-4">
+            {recentProgress.map((item, index) => (
+              <div key={index}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    {item.category}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {item.correct}/{item.questions}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${item.progress}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs text-gray-500">
+                    {item.progress}% 完成
+                  </span>
+                  <span className="text-xs text-green-600">
+                    +{Math.round((item.correct / item.questions) * 100)}% 正確率
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="card bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">正確率</p>
-              <p className="text-3xl font-bold text-secondary">{stats.accuracyRate}%</p>
-            </div>
-            <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white" />
-            </div>
+        {/* 成就系統 */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-800">成就徽章</h2>
+            <Award className="w-5 h-5 text-gray-500" />
           </div>
-        </div>
 
-        <div className="card bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">學習時數</p>
-              <p className="text-3xl font-bold text-primary">{stats.studyTime}h</p>
-            </div>
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">排行榜</p>
-              <p className="text-3xl font-bold text-primary">#{stats.rank}</p>
-            </div>
-            <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center">
-              <Award className="w-6 h-6 text-white" />
-            </div>
+          <div className="grid grid-cols-1 gap-4">
+            {achievements.map((achievement, index) => (
+              <div
+                key={index}
+                className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
+                  achievement.unlocked
+                    ? 'border-yellow-200 bg-yellow-50'
+                    : 'border-gray-200 bg-gray-50'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  achievement.unlocked
+                    ? 'bg-yellow-100 text-yellow-600'
+                    : 'bg-gray-100 text-gray-400'
+                }`}>
+                  <Award className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`font-semibold ${
+                    achievement.unlocked ? 'text-gray-800' : 'text-gray-500'
+                  }`}>
+                    {achievement.title}
+                  </h3>
+                  <p className={`text-sm ${
+                    achievement.unlocked ? 'text-gray-600' : 'text-gray-400'
+                  }`}>
+                    {achievement.description}
+                  </p>
+                </div>
+                {achievement.unlocked && (
+                  <div className="text-yellow-500">
+                    <Award className="w-5 h-5 fill-current" />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* 學習進度 */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="card bg-white">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">各類別學習進度</h3>
-              <button className="text-primary hover:text-primary-dark transition-colors">
-                查看詳細
-              </button>
+      {/* 快速操作 */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-6">快速開始</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button className="flex items-center gap-3 p-4 text-left rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <PlayCircle className="w-6 h-6 text-green-600" />
             </div>
+            <div>
+              <h3 className="font-semibold text-gray-800">隨機練習</h3>
+              <p className="text-sm text-gray-600">混合各類別題目</p>
+            </div>
+          </button>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {categories.map((category) => (
-                <div key={category.id} className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{category.icon}</span>
-                      <div>
-                        <h4 className="font-semibold text-gray-800">{category.name}</h4>
-                        <p className="text-sm text-gray-600">{category.questionCount} 題</p>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${category.color}`}>
-                      {category.progress}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${category.progress}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+          <button className="flex items-center gap-3 p-4 text-left rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Target className="w-6 h-6 text-blue-600" />
             </div>
-          </div>
+            <div>
+              <h3 className="font-semibold text-gray-800">弱項加強</h3>
+              <p className="text-sm text-gray-600">針對薄弱環節</p>
+            </div>
+          </button>
 
-          {/* 最近活動 */}
-          <div className="card bg-white">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">最近練習記錄</h3>
-              <button className="text-primary hover:text-primary-dark transition-colors">
-                查看全部
-              </button>
+          <button className="flex items-center gap-3 p-4 text-left rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-purple-600" />
             </div>
-
-            <div className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-light rounded-lg flex items-center justify-center">
-                      <PlayCircle className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800">{activity.category} 練習</p>
-                      <p className="text-sm text-gray-600">{activity.time}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-primary">{activity.score}分</p>
-                  </div>
-                </div>
-              ))}
+            <div>
+              <h3 className="font-semibold text-gray-800">模擬考試</h3>
+              <p className="text-sm text-gray-600">完整測驗體驗</p>
             </div>
-          </div>
-        </div>
-
-        {/* 側邊欄 */}
-        <div className="space-y-6">
-          {/* 學習目標 */}
-          <div className="card bg-white">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">今日學習目標</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">答題數目標</span>
-                  <span className="font-medium">45/50</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-primary h-2 rounded-full" style={{ width: '90%' }} />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">學習時間</span>
-                  <span className="font-medium">1.5/2.0h</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-secondary h-2 rounded-full" style={{ width: '75%' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 成就徽章 */}
-          <div className="card bg-white">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">最新成就</h3>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-2 bg-yellow-50 rounded-lg">
-                <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">
-                  <Award className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">七日連勝</p>
-                  <p className="text-xs text-gray-600">連續7天完成練習</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-2 bg-green-50 rounded-lg">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                  <Target className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">精準射手</p>
-                  <p className="text-xs text-gray-600">正確率達90%</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 快速操作 */}
-          <div className="card bg-white">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">快速開始</h3>
-            <div className="space-y-3">
-              <button className="w-full btn btn-primary flex items-center justify-center gap-2">
-                <PlayCircle className="w-4 h-4" />
-                隨機練習
-              </button>
-              <button className="w-full btn btn-outline flex items-center justify-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                錯題複習
-              </button>
-              <button className="w-full btn btn-outline flex items-center justify-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                查看統計
-              </button>
-            </div>
-          </div>
+          </button>
         </div>
       </div>
     </div>

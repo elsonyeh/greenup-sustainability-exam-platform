@@ -3,14 +3,11 @@ import {
   Users,
   BookOpen,
   Upload,
-  Download,
   Settings,
   BarChart3,
   AlertCircle,
   CheckCircle,
-  XCircle,
-  FileText,
-  Zap
+  XCircle
 } from 'lucide-react'
 import AIFileComparison from './AIFileComparison'
 
@@ -170,92 +167,6 @@ const AdminPanel: React.FC = () => {
 
   const renderAIImportTool = () => (
     <AIFileComparison />
-  )
-
-  const renderAIImportToolOld = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">AI 智能題庫匯入工具</h3>
-        <p className="text-gray-600 mb-6">
-          使用 Google Gemini AI 智能解析 PDF 文件，自動提取和分類永續發展測驗題目
-        </p>
-
-        {/* 上傳區域 */}
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
-          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h4 className="text-lg font-medium text-gray-800 mb-2">上傳 PDF 文件</h4>
-          <p className="text-gray-600 mb-4">
-            支援永續發展基礎能力測驗的 PDF 格式文件
-          </p>
-          <button className="btn btn-primary">
-            選擇文件
-          </button>
-        </div>
-
-        {/* AI 處理選項 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <Zap className="w-6 h-6 text-yellow-500" />
-              <h4 className="font-medium text-gray-800">AI 自動分類</h4>
-            </div>
-            <p className="text-sm text-gray-600 mb-3">
-              自動識別題目所屬的永續發展分類（環境、社會、經濟、治理）
-            </p>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" className="rounded" defaultChecked />
-              <span className="text-sm text-gray-700">啟用自動分類</span>
-            </label>
-          </div>
-
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <FileText className="w-6 h-6 text-blue-500" />
-              <h4 className="font-medium text-gray-800">AI 生成解析</h4>
-            </div>
-            <p className="text-sm text-gray-600 mb-3">
-              為每個題目自動生成詳細的解析說明和學習重點
-            </p>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" className="rounded" defaultChecked />
-              <span className="text-sm text-gray-700">啟用解析生成</span>
-            </label>
-          </div>
-        </div>
-
-        {/* 匯入歷史 */}
-        <div className="mt-8">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">最近匯入記錄</h4>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-800">11303年度測驗題目.pdf</p>
-                <p className="text-sm text-gray-600">匯入了 80 題，成功率 95%</p>
-              </div>
-              <div className="text-right">
-                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                  已完成
-                </span>
-                <p className="text-xs text-gray-500 mt-1">2小時前</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-800">11302年度測驗題目.pdf</p>
-                <p className="text-sm text-gray-600">匯入了 80 題，成功率 92%</p>
-              </div>
-              <div className="text-right">
-                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                  已完成
-                </span>
-                <p className="text-xs text-gray-500 mt-1">昨天</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   )
 
   const renderTabContent = () => {
