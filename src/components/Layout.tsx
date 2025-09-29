@@ -40,7 +40,7 @@ export default function Layout() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             {/* 手機版側邊欄背景 */}
             {sidebarOpen && (
                 <div
@@ -73,12 +73,12 @@ export default function Layout() {
                                     key={item.name}
                                     to={item.href}
                                     className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
-                                            ? 'bg-primary text-white'
+                                            ? 'bg-primary/10 text-primary border-r-2 border-primary'
                                             : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                                         }`}
                                     onClick={() => setSidebarOpen(false)}
                                 >
-                                    <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-white' : 'text-gray-400'}`} />
+                                    <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-primary' : 'text-gray-400'}`} />
                                     {item.name}
                                 </Link>
                             )
@@ -92,12 +92,12 @@ export default function Layout() {
                         <div className="flex-shrink-0">
                             {profile?.avatar_url ? (
                                 <img
-                                    className="h-8 w-8 rounded-full"
+                                    className="h-8 w-8 rounded-full object-cover flex-shrink-0"
                                     src={profile.avatar_url}
                                     alt={profile.full_name || '使用者'}
                                 />
                             ) : (
-                                <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-md flex-shrink-0">
                                     <span className="text-sm font-medium text-white">
                                         {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
                                     </span>
@@ -127,7 +127,7 @@ export default function Layout() {
             {/* 主要內容區域 */}
             <div className="md:pl-64">
                 {/* 頂部導航列 */}
-                <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+                <div className="bg-white shadow-sm border-b sticky top-0 z-50">
                     <div className="px-4 sm:px-6 lg:px-8">
                         <div className="flex justify-between items-center h-16">
                             <button

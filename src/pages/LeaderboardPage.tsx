@@ -1,37 +1,189 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
+import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { Trophy, Medal, Award, Crown, Calendar, TrendingUp } from 'lucide-react'
 
-// 模擬排行榜數據
-const dailyLeaderboard = [
-    { rank: 1, name: '學習達人', score: 145, accuracy: 98, questionsAnswered: 50, avatar: null },
-    { rank: 2, name: '永續專家', score: 142, accuracy: 95, questionsAnswered: 48, avatar: null },
-    { rank: 3, name: '綠色先鋒', score: 138, accuracy: 92, questionsAnswered: 45, avatar: null },
-    { rank: 4, name: '環保戰士', score: 135, accuracy: 90, questionsAnswered: 43, avatar: null },
-    { rank: 5, name: '可持續發展者', score: 132, accuracy: 88, questionsAnswered: 42, avatar: null },
-    { rank: 6, name: '氣候行動家', score: 128, accuracy: 85, questionsAnswered: 40, avatar: null },
-    { rank: 7, name: '生態守護者', score: 125, accuracy: 83, questionsAnswered: 38, avatar: null },
-    { rank: 8, name: '您的暱稱', score: 122, accuracy: 81, questionsAnswered: 36, avatar: null, isCurrentUser: true }
-]
-
-const weeklyLeaderboard = [
-    { rank: 1, name: '週冠軍', score: 985, accuracy: 96, questionsAnswered: 320, avatar: null },
-    { rank: 2, name: '永續達人', score: 942, accuracy: 94, questionsAnswered: 305, avatar: null },
-    { rank: 3, name: '學習之星', score: 898, accuracy: 92, questionsAnswered: 290, avatar: null },
-    { rank: 4, name: '綠色學者', score: 876, accuracy: 89, questionsAnswered: 275, avatar: null },
-    { rank: 5, name: '環境專家', score: 854, accuracy: 87, questionsAnswered: 260, avatar: null },
-    { rank: 12, name: '您的暱稱', score: 756, accuracy: 78, questionsAnswered: 195, avatar: null, isCurrentUser: true }
-]
+interface LeaderboardUser {
+    rank: number
+    user_id: string
+    name: string
+    score: number
+    accuracy: number
+    questionsAnswered: number
+    avatar: string | null
+    isCurrentUser?: boolean
+}
 
 export default function LeaderboardPage() {
-    const { profile: _profile } = useAuth()
+    const { profile, user } = useAuth()
     const [activeTab, setActiveTab] = useState('daily')
+    const [loading, setLoading] = useState(true)
+    const [dailyLeaderboard, setDailyLeaderboard] = useState<LeaderboardUser[]>([])
+    const [weeklyLeaderboard, setWeeklyLeaderboard] = useState<LeaderboardUser[]>([])
+    const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardUser[]>([])
 
     const tabs = [
         { id: 'daily', name: '每日排行', icon: Calendar },
         { id: 'weekly', name: '每週排行', icon: TrendingUp },
         { id: 'monthly', name: '每月排行', icon: Trophy }
     ]
+
+    // 獲取每日排行榜
+    const fetchDailyLeaderboard = async () => {
+        try {
+            const today = new Date().toISOString().split('T')[0]
+
+            const { data: rankings, error } = await supabase
+                .from('daily_rankings')
+                .select(`
+                    user_id,
+                    questions_answered,
+                    correct_answers,
+                    accuracy_rate,
+                    score,
+                    profiles!inner(full_name, avatar_url)
+                `)
+                .eq('date', today)
+                .order('score', { ascending: false })
+                .limit(50)
+
+            if (error) throw error
+
+            const leaderboard: LeaderboardUser[] = rankings?.map((ranking, index) => ({
+                rank: index + 1,
+                user_id: ranking.user_id,
+                name: (ranking.profiles as any).full_name || '匿名用戶',
+                score: ranking.score,
+                accuracy: Math.round(ranking.accuracy_rate * 100),
+                questionsAnswered: ranking.questions_answered,
+                avatar: (ranking.profiles as any).avatar_url,
+                isCurrentUser: ranking.user_id === user?.id
+            })) || []
+
+            setDailyLeaderboard(leaderboard)
+        } catch (error) {
+            console.error('Error fetching daily leaderboard:', error)
+            setDailyLeaderboard([])
+        }
+    }
+
+    // 獲取週排行榜
+    const fetchWeeklyLeaderboard = async () => {
+        try {
+            const today = new Date()
+            const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()))
+            const startDate = startOfWeek.toISOString().split('T')[0]
+
+            const { data: rankings, error } = await supabase
+                .from('daily_rankings')
+                .select(`
+                    user_id,
+                    questions_answered,
+                    correct_answers,
+                    score,
+                    profiles!inner(full_name, avatar_url)
+                `)
+                .gte('date', startDate)
+                .order('user_id')
+
+            if (error) throw error
+
+            // 按用戶聚合週數據
+            const userWeeklyStats = new Map()
+            rankings?.forEach(ranking => {
+                if (!userWeeklyStats.has(ranking.user_id)) {
+                    userWeeklyStats.set(ranking.user_id, {
+                        user_id: ranking.user_id,
+                        name: (ranking.profiles as any).full_name || '匿名用戶',
+                        avatar: (ranking.profiles as any).avatar_url,
+                        totalQuestions: 0,
+                        totalCorrect: 0,
+                        totalScore: 0
+                    })
+                }
+                const stats = userWeeklyStats.get(ranking.user_id)
+                stats.totalQuestions += ranking.questions_answered
+                stats.totalCorrect += ranking.correct_answers
+                stats.totalScore += ranking.score
+            })
+
+            const leaderboard: LeaderboardUser[] = Array.from(userWeeklyStats.values())
+                .map(stats => ({
+                    user_id: stats.user_id,
+                    name: stats.name,
+                    score: stats.totalScore,
+                    accuracy: stats.totalQuestions > 0 ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100) : 0,
+                    questionsAnswered: stats.totalQuestions,
+                    avatar: stats.avatar,
+                    isCurrentUser: stats.user_id === user?.id,
+                    rank: 0
+                }))
+                .sort((a, b) => b.score - a.score)
+                .map((user, index) => ({ ...user, rank: index + 1 }))
+                .slice(0, 50)
+
+            setWeeklyLeaderboard(leaderboard)
+        } catch (error) {
+            console.error('Error fetching weekly leaderboard:', error)
+            setWeeklyLeaderboard([])
+        }
+    }
+
+    // 獲取月排行榜
+    const fetchMonthlyLeaderboard = async () => {
+        try {
+            const { data: rankings, error } = await supabase
+                .from('overall_rankings')
+                .select(`
+                    user_id,
+                    total_questions_answered,
+                    total_correct_answers,
+                    overall_accuracy_rate,
+                    total_score,
+                    ranking_position,
+                    profiles!inner(full_name, avatar_url)
+                `)
+                .order('total_score', { ascending: false })
+                .limit(50)
+
+            if (error) throw error
+
+            const leaderboard: LeaderboardUser[] = rankings?.map((ranking, index) => ({
+                rank: index + 1,
+                user_id: ranking.user_id,
+                name: (ranking.profiles as any).full_name || '匿名用戶',
+                score: ranking.total_score,
+                accuracy: Math.round(ranking.overall_accuracy_rate * 100),
+                questionsAnswered: ranking.total_questions_answered,
+                avatar: (ranking.profiles as any).avatar_url,
+                isCurrentUser: ranking.user_id === user?.id
+            })) || []
+
+            setMonthlyLeaderboard(leaderboard)
+        } catch (error) {
+            console.error('Error fetching monthly leaderboard:', error)
+            setMonthlyLeaderboard([])
+        }
+    }
+
+    // 獲取所有排行榜數據
+    const fetchLeaderboards = async () => {
+        setLoading(true)
+        try {
+            await Promise.all([
+                fetchDailyLeaderboard(),
+                fetchWeeklyLeaderboard(),
+                fetchMonthlyLeaderboard()
+            ])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchLeaderboards()
+    }, [user?.id])
 
     const getRankIcon = (rank: number) => {
         if (rank === 1) return <Crown className="h-6 w-6 text-yellow-500" />
@@ -47,41 +199,71 @@ export default function LeaderboardPage() {
         return 'default'
     }
 
-    const currentData = activeTab === 'daily' ? dailyLeaderboard : weeklyLeaderboard
+    const getCurrentData = () => {
+        switch (activeTab) {
+            case 'daily':
+                return dailyLeaderboard
+            case 'weekly':
+                return weeklyLeaderboard
+            case 'monthly':
+                return monthlyLeaderboard
+            default:
+                return dailyLeaderboard
+        }
+    }
+
+    const currentData = getCurrentData()
 
     return (
         <div className="space-y-6">
-            {/* 頁面標題 */}
-            <div className="text-center">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">排行榜</h1>
-                <p className="text-gray-600">與其他學習者競爭，激發學習動機</p>
-            </div>
+            {/* 頁面標題和日期尺度選擇 */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-center sm:text-left mb-4 sm:mb-0">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">排行榜</h1>
+                    <p className="text-gray-600">與其他學習者競爭，激發學習動機</p>
+                </div>
 
-            {/* 標籤導航 */}
-            <div className="flex justify-center">
-                <div className="bg-gray-100 p-1 rounded-lg">
-                    {tabs.map((tab) => {
-                        const Icon = tab.icon
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`px-6 py-2 rounded-md font-medium text-sm transition-colors flex items-center ${activeTab === tab.id
-                                        ? 'bg-white text-primary shadow-sm'
-                                        : 'text-gray-600 hover:text-gray-900'
-                                    }`}
-                            >
-                                <Icon className="h-4 w-4 mr-2" />
-                                {tab.name}
-                            </button>
-                        )
-                    })}
+                {/* 日期尺度選擇移至右上角 */}
+                <div className="flex justify-center sm:justify-end">
+                    <div className="bg-gray-50 border border-gray-200 p-1 rounded-lg inline-flex shadow-sm">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`px-3 sm:px-4 py-2 rounded-md font-medium text-sm transition-all duration-200 flex items-center whitespace-nowrap ${activeTab === tab.id
+                                            ? 'bg-white text-primary shadow-md border border-primary/20 transform scale-[0.98]'
+                                            : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                                        }`}
+                                >
+                                    <Icon className="h-4 w-4 mr-1 sm:mr-1.5" />
+                                    <span className="hidden sm:inline">{tab.name}</span>
+                                    <span className="sm:hidden text-xs font-semibold">
+                                        {tab.id === 'daily' ? '日' : tab.id === 'weekly' ? '週' : '月'}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
                 </div>
             </div>
 
             {/* 頂部三名 */}
-            <div className="grid md:grid-cols-3 gap-6">
-                {currentData.slice(0, 3).map((user, index) => {
+            {loading ? (
+                <div className="flex justify-center items-center py-12">
+                    <LoadingSpinner size="lg" />
+                </div>
+            ) : currentData.length === 0 ? (
+                <div className="text-center py-12">
+                    <Trophy className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">暫無排行榜數據</h3>
+                    <p className="text-gray-600">開始練習，成為第一名！</p>
+                </div>
+            ) : (
+                <>
+                    <div className="grid md:grid-cols-3 gap-6">
+                        {currentData.slice(0, 3).map((user, index) => {
                     const actualRank = user.rank
                     return (
                         <div
@@ -137,10 +319,10 @@ export default function LeaderboardPage() {
                         </div>
                     )
                 })}
-            </div>
+                </div>
 
-            {/* 完整排行榜 */}
-            <div className="card">
+                {/* 完整排行榜 */}
+                <div className="card">
                 <div className="card-header">
                     <h3 className="card-title flex items-center">
                         <Trophy className="h-5 w-5 mr-2" />
@@ -170,7 +352,7 @@ export default function LeaderboardPage() {
                                                 alt={user.name}
                                             />
                                         ) : (
-                                            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold mr-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold mr-3 shadow-md">
                                                 {user.name.charAt(0)}
                                             </div>
                                         )}
@@ -200,8 +382,10 @@ export default function LeaderboardPage() {
                             </div>
                         ))}
                     </div>
+                    </div>
                 </div>
-            </div>
+                </>
+            )}
 
             {/* 激勵信息 */}
             <div className="bg-gradient-to-r from-primary/10 to-green-100 rounded-xl p-6">

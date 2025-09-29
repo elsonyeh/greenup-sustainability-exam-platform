@@ -13,6 +13,7 @@ import StatsPage from './pages/StatsPage'
 import AdminPage from './pages/AdminPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
+import AuthCallbackPage from './pages/AuthCallbackPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
 
@@ -55,6 +56,9 @@ function App() {
                 <Route path="/register" element={
                     session ? <Navigate to="/" replace /> : <RegisterPage />
                 } />
+
+                {/* 認證回調路由 */}
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
                 {/* 需要認證的路由 */}
                 <Route path="/" element={

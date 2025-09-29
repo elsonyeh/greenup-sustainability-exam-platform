@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "set-admin": "node scripts/set-admin.js",
+    "verify-admin": "node scripts/verify-admin.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -21,6 +23,7 @@
     "@tanstack/react-query": "^5.17.9",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",
+    "dotenv": "^17.2.2",
     "lucide-react": "^0.312.0",
     "pdfjs-dist": "^4.0.379",
     "react": "^18.2.0",

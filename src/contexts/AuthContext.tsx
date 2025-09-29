@@ -14,6 +14,8 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<{ error: any }>
     signOut: () => Promise<void>
     updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>
+    changePassword: (newPassword: string) => Promise<{ error: any }>
+    deleteAccount: () => Promise<{ error: any }>
     handleAuthError: (error: any) => Promise<boolean>
     isAdmin: boolean
 }
@@ -196,6 +198,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    // 變更密碼
+    const changePassword = async (newPassword: string) => {
+        try {
+            const { error } = await supabase.auth.updateUser({
+                password: newPassword
+            })
+            return { error }
+        } catch (error) {
+            return { error }
+        }
+    }
+
+    // 刪除帳戶
+    const deleteAccount = async () => {
+        try {
+            if (!user) {
+                return { error: new Error('No user logged in') }
+            }
+
+            // 刪除所有相關資料
+            await supabase.from('practice_sessions').delete().eq('user_id', user.id)
+            await supabase.from('overall_rankings').delete().eq('user_id', user.id)
+            await supabase.from('daily_rankings').delete().eq('user_id', user.id)
+            await supabase.from('profiles').delete().eq('id', user.id)
+
+            // 刪除 Supabase Auth 使用者
+            const { error } = await supabase.rpc('delete_user')
+
+            if (!error) {
+                // 登出並清理狀態
+                await signOut()
+            }
+
+            return { error }
+        } catch (error) {
+            return { error }
+        }
+    }
+
     // 檢查是否為管理員
     const isAdmin = profile?.role === 'admin'
 
@@ -208,6 +249,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         updateProfile,
+        changePassword,
+        deleteAccount,
         handleAuthError,
         isAdmin,
     }

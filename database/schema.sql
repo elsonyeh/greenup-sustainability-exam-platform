@@ -337,4 +337,36 @@ INSERT INTO public.question_categories (name, description) VALUES
 ('綜合應用', '跨領域整合、案例分析等綜合性題目');
 
 -- 創建管理員使用者（需要手動設定）
--- 注意：實際部署時需要透過 Supabase Auth 介面或程式創建第一個管理員 
+-- 注意：實際部署時需要透過 Supabase Auth 介面或程式創建第一個管理員
+
+-- =============================================
+-- Storage 配置
+-- =============================================
+
+-- 創建 avatars bucket
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
+
+-- 頭像上傳政策：只允許認證用戶上傳自己的頭像
+CREATE POLICY "Users can upload their own avatar" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'avatars' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- 頭像查看政策：所有人可以查看頭像
+CREATE POLICY "Avatar images are publicly accessible" ON storage.objects
+  FOR SELECT USING (bucket_id = 'avatars');
+
+-- 頭像更新政策：用戶可以更新自己的頭像
+CREATE POLICY "Users can update their own avatar" ON storage.objects
+  FOR UPDATE USING (
+    bucket_id = 'avatars' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- 頭像刪除政策：用戶可以刪除自己的頭像
+CREATE POLICY "Users can delete their own avatar" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'avatars' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  ); 

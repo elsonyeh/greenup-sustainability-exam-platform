@@ -7,7 +7,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+})
+
+// 重新導向URL配置
+export const getRedirectUrl = () => {
+  return import.meta.env.PROD
+    ? 'https://greenup-sustainability-exam-platfor-three.vercel.app/auth/callback'
+    : 'http://localhost:5173/auth/callback'
+}
 
 // 型別定義
 export type Database = {

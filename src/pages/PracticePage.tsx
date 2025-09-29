@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import {
     BookOpen,
@@ -15,39 +16,25 @@ import {
     Settings
 } from 'lucide-react'
 
-// 模擬題目數據（實際會從 Supabase 獲取）
-const mockQuestions = [
-    {
-        id: '1',
-        question_text: '下列何者是聯合國永續發展目標（SDGs）的核心原則？',
-        option_a: '經濟成長優先',
-        option_b: '不讓任何人掉隊（Leave No One Behind）',
-        option_c: '利潤最大化',
-        option_d: '快速工業化',
-        correct_answer: 'B' as const,
-        explanation: '「不讓任何人掉隊」是聯合國永續發展目標的核心原則，強調包容性發展。',
-        category_name: '綜合應用',
-        difficulty_level: 2
-    },
-    {
-        id: '2',
-        question_text: '循環經濟的三大原則不包括下列何者？',
-        option_a: '設計消除廢棄物和污染',
-        option_b: '維持產品和材料的使用',
-        option_c: '最大化產品產量',
-        option_d: '再生自然系統',
-        correct_answer: 'C' as const,
-        explanation: '循環經濟的三大原則是：1.設計消除廢棄物和污染、2.維持產品和材料的使用、3.再生自然系統。',
-        category_name: '經濟永續',
-        difficulty_level: 3
-    }
-]
+interface Question {
+    id: string
+    question_text: string
+    option_a: string | null
+    option_b: string | null
+    option_c: string | null
+    option_d: string | null
+    correct_answer: 'A' | 'B' | 'C' | 'D'
+    explanation: string | null
+    category_name: string
+    difficulty_level: number
+}
 
 export default function PracticePage() {
     const { sessionId: _sessionId } = useParams()
     const navigate = useNavigate()
-    const { profile: _profile } = useAuth()
+    const { profile: _profile, user } = useAuth()
 
+    const [questions, setQuestions] = useState<Question[]>([])
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
     const [answers, setAnswers] = useState<{ [questionId: string]: string }>({})
@@ -55,11 +42,63 @@ export default function PracticePage() {
     const [timeRemaining, setTimeRemaining] = useState(30 * 60) // 30 分鐘
     const [practiceStarted, setPracticeStarted] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [questionsLoading, setQuestionsLoading] = useState(true)
     const [favoriteQuestions, setFavoriteQuestions] = useState<Set<string>>(new Set())
 
-    const currentQuestion = mockQuestions[currentQuestionIndex]
-    const totalQuestions = mockQuestions.length
+    const currentQuestion = questions[currentQuestionIndex]
+    const totalQuestions = questions.length
     const isLastQuestion = currentQuestionIndex === totalQuestions - 1
+
+    // 獲取練習題目
+    const fetchQuestions = async () => {
+        try {
+            setQuestionsLoading(true)
+
+            const { data: questionsData, error } = await supabase
+                .from('questions')
+                .select(`
+                    id,
+                    question_text,
+                    option_a,
+                    option_b,
+                    option_c,
+                    option_d,
+                    correct_answer,
+                    explanation,
+                    difficulty_level,
+                    question_categories(name)
+                `)
+                .limit(20) // 限制20題
+                .order('created_at', { ascending: false })
+
+            if (error) throw error
+
+            const formattedQuestions: Question[] = questionsData?.map(q => ({
+                id: q.id,
+                question_text: q.question_text,
+                option_a: q.option_a,
+                option_b: q.option_b,
+                option_c: q.option_c,
+                option_d: q.option_d,
+                correct_answer: q.correct_answer,
+                explanation: q.explanation,
+                category_name: (q.question_categories as any)?.name || '綜合應用',
+                difficulty_level: q.difficulty_level
+            })) || []
+
+            setQuestions(formattedQuestions)
+        } catch (error) {
+            console.error('Error fetching questions:', error)
+            // 如果獲取失敗，設置空陣列
+            setQuestions([])
+        } finally {
+            setQuestionsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchQuestions()
+    }, [])
 
     // 計時器
     useEffect(() => {
@@ -104,14 +143,14 @@ export default function PracticePage() {
             handleFinishPractice()
         } else {
             setCurrentQuestionIndex(prev => prev + 1)
-            setSelectedAnswer(answers[mockQuestions[currentQuestionIndex + 1]?.id] || null)
+            setSelectedAnswer(answers[questions[currentQuestionIndex + 1]?.id] || null)
         }
     }
 
     const handlePreviousQuestion = () => {
         if (currentQuestionIndex > 0) {
             setCurrentQuestionIndex(prev => prev - 1)
-            setSelectedAnswer(answers[mockQuestions[currentQuestionIndex - 1]?.id] || null)
+            setSelectedAnswer(answers[questions[currentQuestionIndex - 1]?.id] || null)
         }
     }
 
@@ -139,7 +178,7 @@ export default function PracticePage() {
     const calculateResults = () => {
         const totalAnswered = Object.keys(answers).length
         const correctAnswers = Object.entries(answers).filter(([questionId, answer]) => {
-            const question = mockQuestions.find(q => q.id === questionId)
+            const question = questions.find(q => q.id === questionId)
             return question && question.correct_answer === answer
         }).length
 
@@ -153,6 +192,44 @@ export default function PracticePage() {
 
     // 開始練習頁面
     if (!practiceStarted) {
+        if (questionsLoading) {
+            return (
+                <div className="max-w-2xl mx-auto">
+                    <div className="card text-center">
+                        <div className="card-content">
+                            <LoadingSpinner size="lg" className="mx-auto mb-4" />
+                            <h2 className="text-xl font-semibold text-gray-900 mb-2">正在準備題目...</h2>
+                            <p className="text-gray-600">請稍候，我們正在為您準備練習題目</p>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
+        if (totalQuestions === 0) {
+            return (
+                <div className="max-w-2xl mx-auto">
+                    <div className="card text-center">
+                        <div className="card-content">
+                            <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-6" />
+                            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                                暫無可用題目
+                            </h1>
+                            <p className="text-gray-600 mb-8">
+                                目前系統中沒有可用的練習題目，請聯繫管理員或稍後再試。
+                            </p>
+                            <button
+                                onClick={() => navigate('/')}
+                                className="btn-outline"
+                            >
+                                返回首頁
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
         return (
             <div className="max-w-2xl mx-auto">
                 <div className="card text-center">
