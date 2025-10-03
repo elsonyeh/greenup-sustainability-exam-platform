@@ -44,6 +44,20 @@ export default function PracticePage() {
     const [loading, setLoading] = useState(false)
     const [questionsLoading, setQuestionsLoading] = useState(true)
     const [favoriteQuestions, setFavoriteQuestions] = useState<Set<string>>(new Set())
+    const [practiceSessionId, setPracticeSessionId] = useState<string | null>(null)
+    const [startTime, setStartTime] = useState<Date | null>(null)
+    const [completedTime, setCompletedTime] = useState<number>(0) // 完成時的使用時間（秒）
+    const [finalResults, setFinalResults] = useState<{
+        totalAnswered: number
+        correctAnswers: number
+        wrongAnswers: number
+        unanswered: number
+        accuracy: number
+        answerAccuracy: number
+        score: number
+    } | null>(null)
+    const [showExplanationModal, setShowExplanationModal] = useState(false)
+    const [selectedQuestionForExplanation, setSelectedQuestionForExplanation] = useState<Question | null>(null)
 
     const currentQuestion = questions[currentQuestionIndex]
     const totalQuestions = questions.length
@@ -102,7 +116,7 @@ export default function PracticePage() {
 
     // 計時器
     useEffect(() => {
-        if (!practiceStarted) return
+        if (!practiceStarted || showResult) return
 
         const timer = setInterval(() => {
             setTimeRemaining((prev) => {
@@ -115,7 +129,7 @@ export default function PracticePage() {
         }, 1000)
 
         return () => clearInterval(timer)
-    }, [practiceStarted])
+    }, [practiceStarted, showResult])
 
     const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60)
@@ -123,8 +137,31 @@ export default function PracticePage() {
         return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
     }
 
-    const handleStartPractice = () => {
+    const handleStartPractice = async () => {
         setPracticeStarted(true)
+        setStartTime(new Date())
+
+        // 創建練習會話記錄
+        if (user) {
+            try {
+                const { data, error } = await supabase
+                    .from('practice_sessions')
+                    .insert({
+                        user_id: user.id,
+                        session_type: 'random',
+                        total_questions: totalQuestions,
+                        correct_answers: 0,
+                        completed: false
+                    })
+                    .select()
+                    .single()
+
+                if (error) throw error
+                setPracticeSessionId(data.id)
+            } catch (error) {
+                console.error('Error creating practice session:', error)
+            }
+        }
     }
 
     const handleAnswerSelect = (answer: string) => {
@@ -133,10 +170,12 @@ export default function PracticePage() {
 
     const handleNextQuestion = () => {
         if (selectedAnswer) {
-            setAnswers(prev => ({
-                ...prev,
+            const updatedAnswers = {
+                ...answers,
                 [currentQuestion.id]: selectedAnswer
-            }))
+            }
+            setAnswers(updatedAnswers)
+            console.log('下一題 - 已保存答案，當前答案數:', Object.keys(updatedAnswers).length)
         }
 
         if (isLastQuestion) {
@@ -168,24 +207,146 @@ export default function PracticePage() {
 
     const handleFinishPractice = async () => {
         setLoading(true)
-        // 這裡會保存結果到 Supabase
-        setTimeout(() => {
+
+        // 計算並保存完成時間
+        const durationSeconds = startTime
+            ? Math.floor((new Date().getTime() - startTime.getTime()) / 1000)
+            : 30 * 60 - timeRemaining
+        setCompletedTime(durationSeconds)
+
+        try {
+            // 確保包含當前選中的答案
+            let finalAnswers = { ...answers }
+            if (selectedAnswer && currentQuestion) {
+                finalAnswers[currentQuestion.id] = selectedAnswer
+                setAnswers(finalAnswers)
+            }
+
+            console.log('完成練習 - 答案數量:', Object.keys(finalAnswers).length)
+            console.log('完成練習 - 答案明細:', finalAnswers)
+
+            // 計算結果（使用最終答案）
+            const totalAnswered = Object.keys(finalAnswers).length
+            const correctAnswers = Object.entries(finalAnswers).filter(([questionId, answer]) => {
+                const question = questions.find(q => q.id === questionId)
+                return question && question.correct_answer === answer
+            }).length
+
+            const wrongAnswers = totalAnswered - correctAnswers
+            const unanswered = totalQuestions - totalAnswered
+
+            // 保存最終結果
+            const results = {
+                totalAnswered,
+                correctAnswers,
+                wrongAnswers,
+                unanswered,
+                accuracy: totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0,
+                answerAccuracy: totalAnswered > 0 ? Math.round((correctAnswers / totalAnswered) * 100) : 0,
+                score: correctAnswers * 5
+            }
+            setFinalResults(results)
+
+            // 保存練習答題記錄
+            if (user && practiceSessionId) {
+                // 批次保存所有答案（使用最終答案）
+                const answerRecords = Object.entries(finalAnswers).map(([questionId, answer]) => {
+                    const question = questions.find(q => q.id === questionId)
+                    return {
+                        session_id: practiceSessionId,
+                        question_id: questionId,
+                        user_answer: answer,
+                        is_correct: question ? question.correct_answer === answer : false
+                    }
+                })
+
+                if (answerRecords.length > 0) {
+                    await supabase
+                        .from('practice_answers')
+                        .insert(answerRecords)
+                }
+
+                // 更新練習會話狀態
+                await supabase
+                    .from('practice_sessions')
+                    .update({
+                        correct_answers: correctAnswers,
+                        completed: true,
+                        completed_at: new Date().toISOString(),
+                        duration_seconds: durationSeconds
+                    })
+                    .eq('id', practiceSessionId)
+
+                // 保存收藏的題目
+                if (favoriteQuestions.size > 0) {
+                    const favoriteRecords = Array.from(favoriteQuestions).map(questionId => ({
+                        user_id: user.id,
+                        question_id: questionId
+                    }))
+
+                    await supabase
+                        .from('user_favorites')
+                        .upsert(favoriteRecords, {
+                            onConflict: 'user_id,question_id',
+                            ignoreDuplicates: true
+                        })
+                }
+
+                // 保存錯題記錄
+                const wrongAnswers = Object.entries(finalAnswers)
+                    .filter(([questionId, answer]) => {
+                        const question = questions.find(q => q.id === questionId)
+                        return question && question.correct_answer !== answer
+                    })
+                    .map(([questionId]) => ({
+                        user_id: user.id,
+                        question_id: questionId,
+                        wrong_count: 1,
+                        mastered: false
+                    }))
+
+                if (wrongAnswers.length > 0) {
+                    for (const record of wrongAnswers) {
+                        await supabase
+                            .from('wrong_answers')
+                            .upsert(record, {
+                                onConflict: 'user_id,question_id'
+                            })
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error saving practice results:', error)
+        } finally {
             setShowResult(true)
             setLoading(false)
-        }, 1000)
+        }
     }
 
     const calculateResults = () => {
-        const totalAnswered = Object.keys(answers).length
-        const correctAnswers = Object.entries(answers).filter(([questionId, answer]) => {
+        // 包含當前選中的答案
+        const currentAnswers = selectedAnswer && currentQuestion
+            ? { ...answers, [currentQuestion.id]: selectedAnswer }
+            : answers
+
+        const totalAnswered = Object.keys(currentAnswers).length
+        const correctAnswers = Object.entries(currentAnswers).filter(([questionId, answer]) => {
             const question = questions.find(q => q.id === questionId)
             return question && question.correct_answer === answer
         }).length
 
+        const wrongAnswers = totalAnswered - correctAnswers
+        const unanswered = totalQuestions - totalAnswered
+
         return {
             totalAnswered,
             correctAnswers,
-            accuracy: totalAnswered > 0 ? Math.round((correctAnswers / totalAnswered) * 100) : 0,
+            wrongAnswers,
+            unanswered,
+            // 正確率基於總題數，而非已回答題數
+            accuracy: totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0,
+            // 答對率（基於已回答題數）
+            answerAccuracy: totalAnswered > 0 ? Math.round((correctAnswers / totalAnswered) * 100) : 0,
             score: correctAnswers * 5 // 每題 5 分
         }
     }
@@ -279,76 +440,388 @@ export default function PracticePage() {
 
     // 結果頁面
     if (showResult) {
-        const results = calculateResults()
+        const results = finalResults || calculateResults()
+
+        console.log('結果頁面 - finalResults:', finalResults)
+        console.log('結果頁面 - calculateResults():', calculateResults())
+        console.log('結果頁面 - results:', results)
+        console.log('結果頁面 - completedTime:', completedTime)
+        console.log('結果頁面 - totalQuestions:', totalQuestions)
 
         return (
-            <div className="max-w-2xl mx-auto">
-                <div className="card text-center">
+            <div className="max-w-4xl mx-auto">
+                {/* 成績卡片 */}
+                <div className="card text-center mb-6">
                     <div className="card-content">
-                        <div className="mb-8">
-                            {results.accuracy >= 80 ? (
-                                <CheckCircle className="h-20 w-20 text-green-500 mx-auto mb-4" />
-                            ) : results.accuracy >= 60 ? (
-                                <Clock className="h-20 w-20 text-yellow-500 mx-auto mb-4" />
-                            ) : (
-                                <XCircle className="h-20 w-20 text-red-500 mx-auto mb-4" />
-                            )}
+                        <div className="mb-6">
+                            <div className="relative inline-block">
+                                {results.accuracy >= 80 ? (
+                                    <>
+                                        <div className="absolute inset-0 bg-green-400 blur-2xl opacity-30 animate-pulse"></div>
+                                        <CheckCircle className="h-24 w-24 text-green-500 mx-auto mb-4 relative drop-shadow-lg" />
+                                    </>
+                                ) : results.accuracy >= 60 ? (
+                                    <>
+                                        <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-30 animate-pulse"></div>
+                                        <Clock className="h-24 w-24 text-yellow-500 mx-auto mb-4 relative drop-shadow-lg" />
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="absolute inset-0 bg-red-400 blur-2xl opacity-30 animate-pulse"></div>
+                                        <XCircle className="h-24 w-24 text-red-500 mx-auto mb-4 relative drop-shadow-lg" />
+                                    </>
+                                )}
+                            </div>
 
-                            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                            <h1 className="text-4xl font-bold text-gray-900 mb-3">
                                 練習完成！
                             </h1>
-                            <p className="text-gray-600">
+                            <p className="text-lg text-gray-600">
                                 恭喜您完成了本次練習，以下是您的成績統計
                             </p>
                         </div>
 
                         {/* 成績統計 */}
-                        <div className="grid md:grid-cols-4 gap-6 mb-8">
-                            <div className="stats-card">
-                                <div className="text-center">
-                                    <p className="text-3xl font-bold text-blue-600">{results.score}</p>
-                                    <p className="text-sm text-gray-600">總分</p>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                                <p className="text-5xl font-bold text-white mb-2 drop-shadow">{results.score}</p>
+                                <p className="text-sm text-blue-100 font-medium">總分</p>
+                                <div className="mt-3 pt-3 border-t border-blue-400">
+                                    <p className="text-xs text-blue-100">滿分 {totalQuestions * 5}</p>
                                 </div>
                             </div>
-                            <div className="stats-card">
-                                <div className="text-center">
-                                    <p className="text-3xl font-bold text-green-600">{results.accuracy}%</p>
-                                    <p className="text-sm text-gray-600">正確率</p>
+                            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                                <p className="text-5xl font-bold text-white mb-2 drop-shadow">{results.accuracy}%</p>
+                                <p className="text-sm text-green-100 font-medium">正確率</p>
+                                <div className="mt-3 pt-3 border-t border-green-400">
+                                    <p className="text-xs text-green-100">{results.correctAnswers}/{totalQuestions} 題</p>
                                 </div>
                             </div>
-                            <div className="stats-card">
-                                <div className="text-center">
-                                    <p className="text-3xl font-bold text-purple-600">{results.correctAnswers}</p>
-                                    <p className="text-sm text-gray-600">答對題數</p>
+                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                                <p className="text-5xl font-bold text-white mb-2 drop-shadow">{results.totalAnswered}</p>
+                                <p className="text-sm text-purple-100 font-medium">作答題數</p>
+                                <div className="mt-3 pt-3 border-t border-purple-400">
+                                    <p className="text-xs text-purple-100">答對率 {results.answerAccuracy}%</p>
                                 </div>
                             </div>
-                            <div className="stats-card">
-                                <div className="text-center">
-                                    <p className="text-3xl font-bold text-orange-600">{formatTime(30 * 60 - timeRemaining)}</p>
-                                    <p className="text-sm text-gray-600">使用時間</p>
+                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                                <p className="text-5xl font-bold text-white mb-2 drop-shadow font-mono">
+                                    {formatTime(completedTime)}
+                                </p>
+                                <p className="text-sm text-orange-100 font-medium">使用時間</p>
+                                <div className="mt-3 pt-3 border-t border-orange-400">
+                                    <p className="text-xs text-orange-100">建議 30:00</p>
                                 </div>
                             </div>
                         </div>
+
+                        {/* 答題詳情 */}
+                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 mb-6 border border-gray-200">
+                            <h3 className="font-semibold text-gray-900 mb-5 text-center text-lg">答題詳情</h3>
+                            <div className="grid grid-cols-3 gap-6">
+                                <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center justify-center mb-3">
+                                        <div className="bg-green-100 rounded-full p-2 mr-2">
+                                            <CheckCircle className="h-6 w-6 text-green-600" />
+                                        </div>
+                                        <span className="text-3xl font-bold text-green-600">{results.correctAnswers}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-medium text-center">答對</p>
+                                </div>
+                                <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center justify-center mb-3">
+                                        <div className="bg-red-100 rounded-full p-2 mr-2">
+                                            <XCircle className="h-6 w-6 text-red-600" />
+                                        </div>
+                                        <span className="text-3xl font-bold text-red-600">{results.wrongAnswers}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-medium text-center">答錯</p>
+                                </div>
+                                <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center justify-center mb-3">
+                                        <div className="bg-gray-100 rounded-full p-2 mr-2">
+                                            <Clock className="h-6 w-6 text-gray-600" />
+                                        </div>
+                                        <span className="text-3xl font-bold text-gray-600">{results.unanswered}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-medium text-center">未作答</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 評語 */}
+                        <div className={`rounded-xl p-6 mb-6 border-2 ${
+                            results.accuracy >= 80
+                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
+                                : results.accuracy >= 60
+                                ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300'
+                                : 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-300'
+                        }`}>
+                            <p className={`text-center font-medium text-lg ${
+                                results.accuracy >= 80
+                                    ? 'text-green-900'
+                                    : results.accuracy >= 60
+                                    ? 'text-yellow-900'
+                                    : 'text-blue-900'
+                            }`}>
+                                {results.accuracy >= 80 ? (
+                                    <>
+                                        <span className="text-3xl mr-2">🎉</span>
+                                        太棒了！您對永續發展的知識掌握得非常好！
+                                    </>
+                                ) : results.accuracy >= 60 ? (
+                                    <>
+                                        <span className="text-3xl mr-2">👍</span>
+                                        不錯的表現！繼續加強練習，您會更進步！
+                                    </>
+                                ) : results.accuracy >= 40 ? (
+                                    <>
+                                        <span className="text-3xl mr-2">💪</span>
+                                        還有進步空間，建議多複習錯題，加油！
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-3xl mr-2">📚</span>
+                                        建議仔細閱讀相關資料，打好基礎後再練習！
+                                    </>
+                                )}
+                            </p>
+                        </div>
+
+                        {/* 錯題清單 */}
+                        {results.wrongAnswers > 0 && (
+                            <div className="bg-white rounded-xl border-2 border-red-300 mb-6 overflow-hidden shadow-lg">
+                                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+                                    <h3 className="font-bold text-white text-lg flex items-center">
+                                        <div className="bg-white/20 rounded-lg p-2 mr-3">
+                                            <XCircle className="h-6 w-6 text-white" />
+                                        </div>
+                                        錯題回顧
+                                        <span className="ml-3 px-3 py-1 bg-white/30 backdrop-blur rounded-full text-sm">
+                                            {results.wrongAnswers} 題
+                                        </span>
+                                    </h3>
+                                </div>
+                                <div className="p-6 space-y-4 bg-gradient-to-b from-red-50/50 to-white">
+                                    {questions
+                                        .filter(q => {
+                                            const userAnswer = answers[q.id]
+                                            return userAnswer && userAnswer !== q.correct_answer
+                                        })
+                                        .map((question, index) => {
+                                            const userAnswer = answers[question.id]
+                                            return (
+                                                <div
+                                                    key={question.id}
+                                                    className="bg-white border-2 border-gray-200 rounded-xl p-5 hover:border-red-400 hover:shadow-md transition-all duration-300"
+                                                >
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                                <span className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-lg shadow-sm">
+                                                                    <XCircle className="h-3 w-3 mr-1" />
+                                                                    錯題 {index + 1}
+                                                                </span>
+                                                                <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg">
+                                                                    {question.category_name}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-gray-900 font-semibold text-base leading-relaxed">
+                                                                {question.question_text}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-3 mb-4">
+                                                        <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-3">
+                                                            <div className="flex items-start gap-3">
+                                                                <XCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                                                <div className="flex-1">
+                                                                    <p className="text-xs text-red-700 font-medium mb-1">您的答案</p>
+                                                                    <p className="font-semibold text-red-700">
+                                                                        {userAnswer}. {question[`option_${userAnswer.toLowerCase()}` as keyof Question] as string}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-green-50 border-l-4 border-green-500 rounded-r-lg p-3">
+                                                            <div className="flex items-start gap-3">
+                                                                <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                                                                <div className="flex-1">
+                                                                    <p className="text-xs text-green-700 font-medium mb-1">正確答案</p>
+                                                                    <p className="font-semibold text-green-700">
+                                                                        {question.correct_answer}. {question[`option_${question.correct_answer.toLowerCase()}` as keyof Question] as string}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedQuestionForExplanation(question)
+                                                            setShowExplanationModal(true)
+                                                        }}
+                                                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md flex items-center justify-center"
+                                                    >
+                                                        <BookOpen className="h-5 w-5 mr-2" />
+                                                        查看詳細解析
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+                                </div>
+                            </div>
+                        )}
 
                         {/* 操作按鈕 */}
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <button
                                 onClick={() => window.location.reload()}
-                                className="btn-outline"
+                                className="group relative overflow-hidden bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3.5 px-8 rounded-xl border-2 border-gray-300 hover:border-gray-400 transition-all duration-300 shadow-sm hover:shadow-md transform hover:scale-105 flex items-center justify-center"
                             >
-                                <RotateCcw className="mr-2 h-4 w-4" />
+                                <RotateCcw className="mr-2 h-5 w-5 group-hover:rotate-180 transition-transform duration-500" />
                                 重新練習
                             </button>
                             <button
                                 onClick={() => navigate('/stats')}
-                                className="btn-primary"
+                                className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center"
                             >
-                                查看詳細統計
-                                <ArrowRight className="ml-2 h-4 w-4" />
+                                <span className="relative z-10 flex items-center">
+                                    查看詳細統計
+                                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                                </span>
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                             </button>
                         </div>
                     </div>
                 </div>
+
+                {/* 解析彈窗 */}
+                {showExplanationModal && selectedQuestionForExplanation && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between shadow-lg">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-white/20 backdrop-blur rounded-lg p-2">
+                                        <BookOpen className="h-6 w-6 text-white" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white">題目解析</h3>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowExplanationModal(false)
+                                        setSelectedQuestionForExplanation(null)
+                                    }}
+                                    className="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-all duration-200"
+                                >
+                                    <XCircle className="h-6 w-6" />
+                                </button>
+                            </div>
+
+                            <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
+
+                            <div className="p-6 bg-gradient-to-b from-gray-50/50 to-white">
+                                {/* 題目 */}
+                                <div className="mb-6 bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                                    <span className="inline-block px-4 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-bold rounded-lg mb-4 shadow-sm">
+                                        {selectedQuestionForExplanation.category_name}
+                                    </span>
+                                    <h4 className="text-xl font-bold text-gray-900 leading-relaxed">
+                                        {selectedQuestionForExplanation.question_text}
+                                    </h4>
+                                </div>
+
+                                {/* 所有選項 */}
+                                <div className="mb-6 space-y-3">
+                                    {['A', 'B', 'C', 'D'].map((option) => {
+                                        const optionText = selectedQuestionForExplanation[`option_${option.toLowerCase()}` as keyof Question] as string
+                                        if (!optionText) return null
+
+                                        const isCorrect = option === selectedQuestionForExplanation.correct_answer
+                                        const isUserAnswer = option === answers[selectedQuestionForExplanation.id]
+
+                                        return (
+                                            <div
+                                                key={option}
+                                                className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                                                    isCorrect
+                                                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-500 shadow-md'
+                                                        : isUserAnswer
+                                                        ? 'bg-gradient-to-r from-red-50 to-rose-50 border-red-500 shadow-md'
+                                                        : 'bg-white border-gray-200 hover:border-gray-300'
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-4">
+                                                    <span className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm ${
+                                                        isCorrect
+                                                            ? 'bg-gradient-to-br from-green-500 to-green-600 text-white'
+                                                            : isUserAnswer
+                                                            ? 'bg-gradient-to-br from-red-500 to-red-600 text-white'
+                                                            : 'bg-gray-200 text-gray-700'
+                                                    }`}>
+                                                        {option}
+                                                    </span>
+                                                    <div className="flex-1">
+                                                        <p className={`font-medium leading-relaxed ${
+                                                            isCorrect ? 'text-green-900' : isUserAnswer ? 'text-red-900' : 'text-gray-800'
+                                                        }`}>
+                                                            {optionText}
+                                                        </p>
+                                                        {isCorrect && (
+                                                            <div className="mt-2 flex items-center gap-2">
+                                                                <div className="bg-green-500 rounded-full p-1">
+                                                                    <CheckCircle className="h-3.5 w-3.5 text-white" />
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-green-700">正確答案</span>
+                                                            </div>
+                                                        )}
+                                                        {isUserAnswer && !isCorrect && (
+                                                            <div className="mt-2 flex items-center gap-2">
+                                                                <div className="bg-red-500 rounded-full p-1">
+                                                                    <XCircle className="h-3.5 w-3.5 text-white" />
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-red-700">您的答案</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+
+                                {/* 解析內容 */}
+                                <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 rounded-xl p-6 border-2 border-blue-300 shadow-lg">
+                                    <h5 className="font-bold text-blue-900 mb-4 flex items-center text-lg">
+                                        <div className="bg-blue-500 rounded-lg p-2 mr-3">
+                                            <BookOpen className="h-5 w-5 text-white" />
+                                        </div>
+                                        詳細解析
+                                    </h5>
+                                    <div className="text-blue-900 leading-relaxed bg-white/60 backdrop-blur rounded-lg p-4">
+                                        {selectedQuestionForExplanation.explanation || (
+                                            <p className="text-gray-500 italic">暫無解析內容</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            </div>
+
+                            <div className="sticky bottom-0 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 px-6 py-4 shadow-lg">
+                                <button
+                                    onClick={() => {
+                                        setShowExplanationModal(false)
+                                        setSelectedQuestionForExplanation(null)
+                                    }}
+                                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 px-6 rounded-xl transition-all duration-300 shadow-md hover:shadow-xl transform hover:scale-[1.02]"
+                                >
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         )
     }
@@ -357,94 +830,84 @@ export default function PracticePage() {
     return (
         <div className="max-w-2xl mx-auto">
             {/* 頂部進度條 */}
-            <div className="card mb-6">
-                <div className="card-content">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-4">
-                            <span className="text-sm text-gray-600">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6">
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center space-x-6">
+                        <div className="flex items-center space-x-2">
+                            <BookOpen className="h-5 w-5 text-primary" />
+                            <span className="text-base font-semibold text-gray-800">
                                 題目 {currentQuestionIndex + 1} / {totalQuestions}
                             </span>
-                            <div className="flex items-center space-x-2">
-                                <Clock className="h-4 w-4 text-gray-500" />
-                                <span className={`text-sm font-mono ${timeRemaining < 300 ? 'text-red-600' : 'text-gray-600'
-                                    }`}>
-                                    {formatTime(timeRemaining)}
-                                </span>
-                            </div>
                         </div>
-
-                        <button
-                            onClick={() => handleToggleFavorite(currentQuestion.id)}
-                            className={`p-2 rounded-lg transition-colors ${favoriteQuestions.has(currentQuestion.id)
-                                    ? 'text-red-500 bg-red-50'
-                                    : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
-                                }`}
-                        >
-                            <Heart className={`h-5 w-5 ${favoriteQuestions.has(currentQuestion.id) ? 'fill-current' : ''
-                                }`} />
-                        </button>
+                        <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg">
+                            <Clock className="h-5 w-5 text-gray-500" />
+                            <span className={`text-base font-mono font-semibold ${timeRemaining < 300 ? 'text-red-600' : 'text-gray-700'
+                                }`}>
+                                {formatTime(timeRemaining)}
+                            </span>
+                        </div>
                     </div>
+                </div>
 
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                            className="bg-primary h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
-                        />
-                    </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div
+                        className="bg-gradient-to-r from-primary to-blue-500 h-3 rounded-full transition-all duration-300 shadow-sm"
+                        style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
+                    />
                 </div>
             </div>
 
             {/* 題目內容 */}
-            <div className="card mb-6">
-                <div className="card-content">
-                    <div className="flex items-start justify-between mb-6">
-                        <div>
-                            <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-sm rounded-full mb-4">
-                                {currentQuestion.category_name}
-                            </span>
-                            <h2 className="text-xl font-semibold text-gray-900 leading-relaxed">
-                                {currentQuestion.question_text}
-                            </h2>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                                <div
-                                    key={i}
-                                    className={`w-2 h-2 rounded-full ${i < currentQuestion.difficulty_level ? 'bg-yellow-400' : 'bg-gray-200'
-                                        }`}
-                                />
-                            ))}
-                        </div>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6">
+                {/* 題目標題和收藏按鈕 */}
+                <div className="flex items-start justify-between gap-4 mb-6">
+                    <div className="flex-1 pt-1">
+                        <span className="inline-block px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full mb-5">
+                            {currentQuestion.category_name}
+                        </span>
+                        <h2 className="text-xl font-semibold text-gray-900 leading-relaxed">
+                            {currentQuestion.question_text}
+                        </h2>
                     </div>
+                    <button
+                        onClick={() => handleToggleFavorite(currentQuestion.id)}
+                        className={`flex-shrink-0 p-2.5 rounded-lg transition-all ${favoriteQuestions.has(currentQuestion.id)
+                                ? 'text-red-500 bg-red-50 hover:bg-red-100'
+                                : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                            }`}
+                        title={favoriteQuestions.has(currentQuestion.id) ? '取消收藏' : '收藏題目'}
+                    >
+                        <Heart className={`h-5 w-5 ${favoriteQuestions.has(currentQuestion.id) ? 'fill-current' : ''}`} />
+                    </button>
+                </div>
 
-                    {/* 選項 */}
-                    <div className="space-y-3">
-                        {['A', 'B', 'C', 'D'].map((option) => {
-                            const optionText = currentQuestion[`option_${option.toLowerCase()}` as keyof typeof currentQuestion] as string
-                            if (!optionText) return null
+                {/* 選項 */}
+                <div className="space-y-3">
+                    {['A', 'B', 'C', 'D'].map((option) => {
+                        const optionText = currentQuestion[`option_${option.toLowerCase()}` as keyof typeof currentQuestion] as string
+                        if (!optionText) return null
 
-                            return (
-                                <button
-                                    key={option}
-                                    onClick={() => handleAnswerSelect(option)}
-                                    className={`question-option w-full text-left ${selectedAnswer === option ? 'selected' : ''
-                                        }`}
-                                >
-                                    <div className="flex items-start">
-                                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center mr-4 mt-0.5 ${selectedAnswer === option
-                                                ? 'border-primary bg-primary text-white'
-                                                : 'border-gray-300'
-                                            }`}>
-                                            {option}
-                                        </div>
-                                        <div className="flex-1">
-                                            {optionText}
-                                        </div>
+                        return (
+                            <button
+                                key={option}
+                                onClick={() => handleAnswerSelect(option)}
+                                className={`question-option w-full text-left ${selectedAnswer === option ? 'selected' : ''
+                                    }`}
+                            >
+                                <div className="flex items-center">
+                                    <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center mr-4 flex-shrink-0 font-semibold ${selectedAnswer === option
+                                            ? 'border-primary bg-primary text-white'
+                                            : 'border-gray-300 text-gray-600'
+                                        }`}>
+                                        {option}
                                     </div>
-                                </button>
-                            )
-                        })}
-                    </div>
+                                    <div className="flex-1 py-1">
+                                        {optionText}
+                                    </div>
+                                </div>
+                            </button>
+                        )
+                    })}
                 </div>
             </div>
 

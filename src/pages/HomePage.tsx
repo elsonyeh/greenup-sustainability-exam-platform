@@ -48,33 +48,6 @@ export default function HomePage() {
     const [quickStats, setQuickStats] = useState<QuickStat[]>([])
     const [leaderboardPreview, setLeaderboardPreview] = useState<LeaderboardPreview[]>([])
 
-    const features = [
-        {
-            icon: BookOpen,
-            title: '智慧練習',
-            description: '根據您的學習進度推薦合適的題目，提升學習效率',
-            color: 'bg-blue-500'
-        },
-        {
-            icon: BarChart3,
-            title: '詳細統計',
-            description: '追蹤您的學習進度，分析強弱項目',
-            color: 'bg-green-500'
-        },
-        {
-            icon: Trophy,
-            title: '排行榜',
-            description: '與其他學習者競爭，激發學習動機',
-            color: 'bg-yellow-500'
-        },
-        {
-            icon: Target,
-            title: '錯題複習',
-            description: '針對性複習錯題，確實掌握知識要點',
-            color: 'bg-red-500'
-        }
-    ]
-
     // 獲取快速統計數據
     const fetchQuickStats = async () => {
         try {
@@ -151,7 +124,7 @@ export default function HomePage() {
                 {
                     label: '平均分數',
                     value: `${averageScore}分`,
-                    icon: TrendingUp,
+                    icon: Target,
                     color: 'text-orange-600'
                 }
             ])
@@ -163,7 +136,7 @@ export default function HomePage() {
                 { label: '總題數', value: '0', icon: BookOpen, color: 'text-blue-600' },
                 { label: '近7日活躍', value: '0/7天', icon: Users, color: 'text-green-600' },
                 { label: '完成率', value: '0%', icon: CheckCircle, color: 'text-purple-600' },
-                { label: '平均分數', value: '0分', icon: TrendingUp, color: 'text-orange-600' }
+                { label: '平均分數', value: '0分', icon: Target, color: 'text-orange-600' }
             ])
         }
     }
@@ -372,7 +345,7 @@ export default function HomePage() {
                                     <p className="text-sm font-medium text-gray-600 mb-2">{stat.label}</p>
                                     <p className="text-3xl font-bold text-gray-900 group-hover:text-primary transition-colors">{stat.value}</p>
                                 </div>
-                                <div className={`p-3 rounded-xl ${stat.color.replace('text-', 'bg-').replace('-500', '-100')} group-hover:scale-110 transition-transform`}>
+                                <div className="p-3 rounded-xl group-hover:scale-110 transition-transform">
                                     <Icon className={`h-8 w-8 ${stat.color}`} />
                                 </div>
                             </div>
@@ -381,43 +354,6 @@ export default function HomePage() {
                         </div>
                     )
                 })}
-            </div>
-
-            {/* 功能特色 */}
-            <div>
-                <div className="text-center mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">平台特色</h2>
-                    <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                        專為永續發展學習設計的全方位平台，提供最優質的學習體驗
-                    </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {features.map((feature, index) => {
-                        const Icon = feature.icon
-                        return (
-                            <div key={index} className="group relative bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-                                <div className="text-center">
-                                    <div className={`${feature.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform shadow-lg`}>
-                                        <Icon className="h-8 w-8 text-white" />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-primary transition-colors">
-                                        {feature.title}
-                                    </h3>
-                                    <p className="text-gray-600 leading-relaxed">
-                                        {feature.description}
-                                    </p>
-                                </div>
-
-                                {/* 裝飾性背景 */}
-                                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity -z-10"></div>
-
-                                {/* 底部裝飾線 */}
-                                <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-1 rounded-full ${feature.color} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-                            </div>
-                        )
-                    })}
-                </div>
             </div>
 
             {/* 最近活動 */}

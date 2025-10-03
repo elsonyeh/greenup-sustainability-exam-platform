@@ -119,6 +119,20 @@ interface DailyActivity {
     avgAccuracy: number
 }
 
+interface AIError {
+    id: string
+    question_id: string | null
+    error_type: string
+    error_message: string
+    error_details: any
+    resolved: boolean
+    created_at: string
+    questions?: {
+        question_text: string
+        question_number: number
+    }
+}
+
 export default function AdminPage() {
     const { isAdmin } = useAuth()
     const [activeTab, setActiveTab] = useState('upload')
@@ -146,6 +160,12 @@ export default function AdminPage() {
     const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([])
     const [dailyActivity, setDailyActivity] = useState<DailyActivity[]>([])
     const [refreshing, setRefreshing] = useState(false)
+    const [aiErrors, setAiErrors] = useState<AIError[]>([])
+    const [aiErrorStats, setAiErrorStats] = useState({
+        total: 0,
+        unresolved: 0,
+        byType: {} as Record<string, number>
+    })
 
     // 系統設定狀態
     const [systemSettings, setSystemSettings] = useState({
@@ -403,6 +423,58 @@ export default function AdminPage() {
         }
     }
 
+    const fetchAIErrors = async () => {
+        try {
+            const { data: errors, error } = await supabase
+                .from('ai_generation_errors')
+                .select(`
+                    *,
+                    questions:question_id (
+                        question_text,
+                        question_number
+                    )
+                `)
+                .order('created_at', { ascending: false })
+                .limit(50)
+
+            if (error) throw error
+
+            setAiErrors(errors || [])
+
+            // 計算統計資訊
+            const total = errors?.length || 0
+            const unresolved = errors?.filter(e => !e.resolved).length || 0
+            const byType = errors?.reduce((acc, err) => {
+                acc[err.error_type] = (acc[err.error_type] || 0) + 1
+                return acc
+            }, {} as Record<string, number>) || {}
+
+            setAiErrorStats({ total, unresolved, byType })
+        } catch (error) {
+            console.error('Error fetching AI errors:', error)
+        }
+    }
+
+    const markErrorAsResolved = async (errorId: string) => {
+        try {
+            const { error } = await supabase
+                .from('ai_generation_errors')
+                .update({
+                    resolved: true,
+                    resolved_at: new Date().toISOString()
+                })
+                .eq('id', errorId)
+
+            if (error) throw error
+
+            // 重新載入錯誤列表
+            await fetchAIErrors()
+        } catch (error) {
+            console.error('Error marking error as resolved:', error)
+            alert('標記為已解決失敗')
+        }
+    }
+
     // 獲取系統狀態和指標
     const fetchSystemStatus = async () => {
         try {
@@ -471,7 +543,8 @@ export default function AdminPage() {
                 fetchPlatformStats(),
                 fetchCategoryStats(),
                 fetchDailyActivity(),
-                fetchSystemStatus()
+                fetchSystemStatus(),
+                fetchAIErrors()
             ])
         } finally {
             setLoading(false)
@@ -513,6 +586,7 @@ export default function AdminPage() {
         { id: 'questions', name: '題目管理', icon: FileText },
         { id: 'users', name: '用戶管理', icon: Users },
         { id: 'analytics', name: '數據分析', icon: BarChart3 },
+        { id: 'ai-errors', name: 'AI 錯誤記錄', icon: AlertTriangle, badge: aiErrorStats.unresolved },
         { id: 'settings', name: '系統設定', icon: Settings }
     ]
 
@@ -1822,6 +1896,11 @@ export default function AdminPage() {
                                 <div className="flex items-center">
                                     <Icon className="h-4 w-4 mr-2" />
                                     {tab.name}
+                                    {tab.badge && tab.badge > 0 && (
+                                        <span className="ml-2 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">
+                                            {tab.badge}
+                                        </span>
+                                    )}
                                 </div>
                             </button>
                         )
@@ -1835,8 +1914,201 @@ export default function AdminPage() {
                 {activeTab === 'questions' && renderQuestionsTab()}
                 {activeTab === 'users' && renderUsersTab()}
                 {activeTab === 'analytics' && renderAnalyticsTab()}
+                {activeTab === 'ai-errors' && renderAIErrorsTab()}
                 {activeTab === 'settings' && renderSettingsTab()}
             </div>
         </div>
     )
+
+    function renderAIErrorsTab() {
+        const getErrorTypeLabel = (type: string) => {
+            const labels: Record<string, string> = {
+                'API_KEY_INVALID': 'API 金鑰無效',
+                'QUOTA_EXCEEDED': 'API 配額不足',
+                'RATE_LIMIT_EXCEEDED': 'API 呼叫頻繁',
+                'SAFETY_FILTER': '安全過濾器',
+                'JSON_PARSE_ERROR': 'JSON 解析錯誤',
+                'UNKNOWN_ERROR': '未知錯誤'
+            }
+            return labels[type] || type
+        }
+
+        const getErrorTypeColor = (type: string) => {
+            const colors: Record<string, string> = {
+                'API_KEY_INVALID': 'bg-red-100 text-red-800',
+                'QUOTA_EXCEEDED': 'bg-orange-100 text-orange-800',
+                'RATE_LIMIT_EXCEEDED': 'bg-yellow-100 text-yellow-800',
+                'SAFETY_FILTER': 'bg-purple-100 text-purple-800',
+                'JSON_PARSE_ERROR': 'bg-blue-100 text-blue-800',
+                'UNKNOWN_ERROR': 'bg-gray-100 text-gray-800'
+            }
+            return colors[type] || 'bg-gray-100 text-gray-800'
+        }
+
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">AI 生成錯誤記錄</h3>
+                    <button
+                        onClick={fetchAIErrors}
+                        className="btn-outline flex items-center"
+                    >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        刷新列表
+                    </button>
+                </div>
+
+                {/* 錯誤統計 */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-4 text-white">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-red-100 text-sm">總錯誤數</p>
+                                <p className="text-2xl font-bold">{aiErrorStats.total}</p>
+                            </div>
+                            <AlertTriangle className="h-8 w-8 text-red-200" />
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg p-4 text-white">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-yellow-100 text-sm">待處理</p>
+                                <p className="text-2xl font-bold">{aiErrorStats.unresolved}</p>
+                            </div>
+                            <XCircle className="h-8 w-8 text-yellow-200" />
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-green-100 text-sm">已解決</p>
+                                <p className="text-2xl font-bold">{aiErrorStats.total - aiErrorStats.unresolved}</p>
+                            </div>
+                            <CheckCircle className="h-8 w-8 text-green-200" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* 按錯誤類型統計 */}
+                <div className="card">
+                    <div className="card-header">
+                        <h4 className="card-title">錯誤類型分布</h4>
+                    </div>
+                    <div className="card-content">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {Object.entries(aiErrorStats.byType).map(([type, count]) => (
+                                <div key={type} className="bg-gray-50 p-3 rounded-lg">
+                                    <div className="flex items-center justify-between">
+                                        <span className={`px-2 py-1 rounded text-xs font-medium ${getErrorTypeColor(type)}`}>
+                                            {getErrorTypeLabel(type)}
+                                        </span>
+                                        <span className="text-lg font-bold text-gray-700">{count}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 錯誤列表 */}
+                <div className="card">
+                    <div className="card-header">
+                        <h4 className="card-title">錯誤詳細列表</h4>
+                    </div>
+                    <div className="card-content">
+                        {loading ? (
+                            <div className="flex justify-center py-8">
+                                <LoadingSpinner size="md" />
+                            </div>
+                        ) : aiErrors.length === 0 ? (
+                            <div className="text-center py-8">
+                                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                                <p className="text-gray-600">太棒了！目前沒有 AI 生成錯誤</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {aiErrors.map((error) => (
+                                    <div
+                                        key={error.id}
+                                        className={`border rounded-lg p-4 ${
+                                            error.resolved ? 'bg-gray-50 opacity-60' : 'bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center space-x-2 mb-2">
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${getErrorTypeColor(error.error_type)}`}>
+                                                        {getErrorTypeLabel(error.error_type)}
+                                                    </span>
+                                                    {error.resolved ? (
+                                                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                                                            已解決
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
+                                                            待處理
+                                                        </span>
+                                                    )}
+                                                    <span className="text-xs text-gray-500">
+                                                        {new Date(error.created_at).toLocaleString('zh-TW')}
+                                                    </span>
+                                                </div>
+
+                                                {error.questions && (
+                                                    <div className="mb-2">
+                                                        <span className="text-sm font-medium text-gray-700">
+                                                            題目 #{error.questions.question_number}:
+                                                        </span>
+                                                        <p className="text-sm text-gray-600 mt-1">
+                                                            {error.questions.question_text}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                <div className="mb-2">
+                                                    <span className="text-sm font-medium text-gray-700">錯誤訊息:</span>
+                                                    <p className="text-sm text-red-600 mt-1">{error.error_message}</p>
+                                                </div>
+
+                                                {error.error_details && (
+                                                    <details className="text-xs text-gray-500 mt-2">
+                                                        <summary className="cursor-pointer hover:text-gray-700">
+                                                            詳細資訊
+                                                        </summary>
+                                                        <pre className="mt-2 p-2 bg-gray-100 rounded overflow-x-auto">
+                                                            {JSON.stringify(
+                                                                typeof error.error_details === 'string'
+                                                                    ? JSON.parse(error.error_details)
+                                                                    : error.error_details,
+                                                                null,
+                                                                2
+                                                            )}
+                                                        </pre>
+                                                    </details>
+                                                )}
+                                            </div>
+
+                                            <div className="ml-4">
+                                                {!error.resolved && (
+                                                    <button
+                                                        onClick={() => markErrorAsResolved(error.id)}
+                                                        className="btn-primary text-sm flex items-center"
+                                                    >
+                                                        <CheckCircle className="h-4 w-4 mr-1" />
+                                                        標記為已解決
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )
+    }
 } 

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vercel 環境變數診斷</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔍 Vercel 環境變數診斷工具</h1>
+        <p>這個頁面會檢查 Vercel 上的環境變數是否正確設置</p>
+    </div>
+
+    <div class="card">
+        <h2>環境資訊</h2>
+        <div id="env-info"></div>
+    </div>
+
+    <div class="card">
+        <h2>測試結果</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="card">
+        <h2>原始數據</h2>
+        <button onclick="showRawData()">顯示原始環境變數</button>
+        <pre id="raw-data" style="display: none;"></pre>
+    </div>
+
+    <script>
+        // 檢查環境變數
+        const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL;
+        const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+        const GEMINI_API_KEY = import.meta.env?.VITE_GEMINI_API_KEY;
+
+        // 顯示環境資訊
+        const envInfo = document.getElementById('env-info');
+        envInfo.innerHTML = `
+            <div class="status info">
+                <strong>環境模式:</strong> ${import.meta.env?.MODE || 'unknown'}<br>
+                <strong>是否為生產環境:</strong> ${import.meta.env?.PROD ? '是' : '否'}<br>
+                <strong>Base URL:</strong> ${import.meta.env?.BASE_URL || 'unknown'}
+            </div>
+        `;
+
+        // 測試結果
+        const testResults = document.getElementById('test-results');
+        let allPassed = true;
+        let results = '';
+
+        // 測試 Supabase URL
+        if (SUPABASE_URL) {
+            results += `<div class="status success">✅ VITE_SUPABASE_URL: 已設置<br>值: ${SUPABASE_URL}</div>`;
+        } else {
+            results += `<div class="status error">❌ VITE_SUPABASE_URL: 未設置或無法讀取</div>`;
+            allPassed = false;
+        }
+
+        // 測試 Supabase Anon Key
+        if (SUPABASE_ANON_KEY) {
+            results += `<div class="status success">✅ VITE_SUPABASE_ANON_KEY: 已設置<br>前10個字元: ${SUPABASE_ANON_KEY.substring(0, 10)}...</div>`;
+        } else {
+            results += `<div class="status error">❌ VITE_SUPABASE_ANON_KEY: 未設置或無法讀取</div>`;
+            allPassed = false;
+        }
+
+        // 測試 Gemini API Key
+        if (GEMINI_API_KEY) {
+            results += `<div class="status success">✅ VITE_GEMINI_API_KEY: 已設置<br>前10個字元: ${GEMINI_API_KEY.substring(0, 10)}...</div>`;
+        } else {
+            results += `<div class="status error">❌ VITE_GEMINI_API_KEY: 未設置或無法讀取</div>`;
+            allPassed = false;
+        }
+
+        // 總結
+        if (allPassed) {
+            results += `<div class="status success"><strong>🎉 所有環境變數都已正確設置！</strong><br>如果網站仍然無法載入，問題可能不是環境變數。</div>`;
+        } else {
+            results += `<div class="status error"><strong>⚠️ 有環境變數缺失！</strong><br>請在 Vercel Dashboard 中檢查環境變數設置。</div>`;
+        }
+
+        testResults.innerHTML = results;
+
+        // 顯示原始數據
+        function showRawData() {
+            const rawData = document.getElementById('raw-data');
+            if (rawData.style.display === 'none') {
+                rawData.style.display = 'block';
+                rawData.textContent = JSON.stringify({
+                    VITE_SUPABASE_URL: SUPABASE_URL || 'undefined',
+                    VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.substring(0, 20) + '...' : 'undefined',
+                    VITE_GEMINI_API_KEY: GEMINI_API_KEY ? GEMINI_API_KEY.substring(0, 20) + '...' : 'undefined',
+                    MODE: import.meta.env?.MODE,
+                    PROD: import.meta.env?.PROD,
+                    DEV: import.meta.env?.DEV,
+                    BASE_URL: import.meta.env?.BASE_URL,
+                    ALL_ENV_VARS: Object.keys(import.meta.env || {})
+                }, null, 2);
+            } else {
+                rawData.style.display = 'none';
+            }
+        }
+
+        // 自動記錄到 console
+        console.log('=== Vercel 環境變數診斷 ===');
+        console.log('VITE_SUPABASE_URL:', SUPABASE_URL ? '✓ Set' : '✗ Missing');
+        console.log('VITE_SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
+        console.log('VITE_GEMINI_API_KEY:', GEMINI_API_KEY ? '✓ Set' : '✗ Missing');
+        console.log('Environment Mode:', import.meta.env?.MODE);
+        console.log('All environment variables:', Object.keys(import.meta.env || {}));
+    </script>
+</body>
+</html>

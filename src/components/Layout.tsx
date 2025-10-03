@@ -7,7 +7,7 @@ import {
     BarChart3,
     Trophy,
     User,
-    // Settings,
+    Info,
     LogOut,
     Menu,
     X,
@@ -20,6 +20,7 @@ const navigationItems = [
     { name: '學習統計', href: '/stats', icon: BarChart3 },
     { name: '排行榜', href: '/leaderboard', icon: Trophy },
     { name: '個人檔案', href: '/profile', icon: User },
+    { name: '關於我們', href: '/about', icon: Info },
 ]
 
 const adminNavigationItems = [

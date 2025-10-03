@@ -62,7 +62,7 @@
 
 ### AI 和處理
 
-- **OpenAI API**: GPT-4 驅動的自動解答生成
+- **Gemini API**: 自動解答生成
 - **PDF.js**: PDF 檔案解析和渲染
 - **Tesseract.js**: OCR 文字識別
 - **自然語言處理**: 智慧題目解析和分類

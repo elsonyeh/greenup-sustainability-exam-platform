@@ -101,7 +101,9 @@ export default function ProfilePage() {
     }
 
     useEffect(() => {
-        fetchUserStats()
+        if (user?.id) {
+            fetchUserStats()
+        }
     }, [user?.id])
 
     // 同步 profile 數據到 formData

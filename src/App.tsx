@@ -13,6 +13,7 @@ import StatsPage from './pages/StatsPage'
 import AdminPage from './pages/AdminPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
+import AboutPage from './pages/AboutPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
@@ -22,20 +23,51 @@ function App() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
+        let mounted = true
+
+        // 設置超時保護 - 延長為 5 秒，給 Supabase 更多時間回應
+        const timeout = setTimeout(() => {
+            if (mounted) {
+                console.info('Session loading timeout - continuing without authentication')
+                setLoading(false)
+            }
+        }, 5000)
+
         // 取得初始 session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session)
-            setLoading(false)
-        })
+        supabase.auth.getSession()
+            .then(({ data: { session }, error }) => {
+                if (!mounted) return
+
+                if (error) {
+                    console.error('Error getting session:', error)
+                    // 即使有錯誤也繼續，讓使用者可以登入
+                }
+                setSession(session)
+                setLoading(false)
+                clearTimeout(timeout)
+            })
+            .catch((error) => {
+                if (!mounted) return
+
+                console.error('Failed to get session:', error)
+                setLoading(false)
+                clearTimeout(timeout)
+            })
 
         // 監聽認證狀態變化
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!mounted) return
+
             setSession(session)
         })
 
-        return () => subscription.unsubscribe()
+        return () => {
+            mounted = false
+            subscription.unsubscribe()
+            clearTimeout(timeout)
+        }
     }, [])
 
     if (loading) {
@@ -70,6 +102,7 @@ function App() {
                     <Route path="stats" element={<StatsPage />} />
                     <Route path="leaderboard" element={<LeaderboardPage />} />
                     <Route path="profile" element={<ProfilePage />} />
+                    <Route path="about" element={<AboutPage />} />
                     <Route path="admin" element={<AdminPage />} />
                 </Route>
 

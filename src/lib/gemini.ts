@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { supabase } from './supabase'
+import { sendAdminAlert } from './emailService'
 
 // 初始化 Gemini 客戶端
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY!)
@@ -34,6 +36,44 @@ interface AIExplanationResponse {
   relatedConcepts: string[]
 }
 
+// 錯誤記錄到資料庫
+async function logAIError(
+  questionId: string,
+  errorType: string,
+  errorMessage: string,
+  errorDetails?: any
+): Promise<void> {
+  try {
+    await supabase.from('ai_generation_errors').insert({
+      question_id: questionId,
+      error_type: errorType,
+      error_message: errorMessage,
+      error_details: errorDetails ? JSON.stringify(errorDetails) : null,
+      created_at: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Failed to log AI error:', error)
+  }
+}
+
+// 發送嚴重錯誤警報給管理員
+async function sendCriticalErrorAlert(
+  errorType: string,
+  errorCount: number,
+  errorMessage: string
+): Promise<void> {
+  try {
+    await sendAdminAlert(
+      `AI 解析服務異常 - ${errorType}`,
+      'error',
+      `檢測到 AI 解析服務出現嚴重錯誤：\n\n錯誤類型：${errorType}\n錯誤訊息：${errorMessage}\n影響題目數：${errorCount}`,
+      '請檢查：\n1. Gemini API 金鑰是否有效\n2. API 配額是否充足\n3. 網路連線是否正常\n4. 題目內容是否觸發安全過濾器'
+    )
+  } catch (error) {
+    console.error('Failed to send critical error alert:', error)
+  }
+}
+
 // 生成 AI 解答
 export async function generateAIExplanation({
   question,
@@ -52,7 +92,15 @@ export async function generateAIExplanation({
     try {
       parsedResponse = JSON.parse(responseText)
     } catch (parseError) {
-      // 如果無法解析為 JSON，創建一個默認回應
+      // JSON 解析失敗，記錄錯誤
+      await logAIError(
+        question.id,
+        'JSON_PARSE_ERROR',
+        'AI 回應無法解析為 JSON 格式',
+        { responseText: responseText.substring(0, 500) }
+      )
+
+      // 創建一個默認回應
       parsedResponse = {
         explanation: responseText,
         confidence: 0.8,
@@ -63,7 +111,21 @@ export async function generateAIExplanation({
 
     return parsedResponse
 
-  } catch (error) {
+  } catch (error: any) {
+    // 記錄錯誤到資料庫
+    const errorType = error?.message?.includes('API_KEY_INVALID') ? 'API_KEY_INVALID' :
+                      error?.message?.includes('QUOTA_EXCEEDED') ? 'QUOTA_EXCEEDED' :
+                      error?.message?.includes('RATE_LIMIT_EXCEEDED') ? 'RATE_LIMIT_EXCEEDED' :
+                      error?.message?.includes('SAFETY') ? 'SAFETY_FILTER' :
+                      'UNKNOWN_ERROR'
+
+    await logAIError(
+      question.id,
+      errorType,
+      error?.message || '未知錯誤',
+      { stack: error?.stack }
+    )
+
     console.error('Error generating AI explanation:', error)
     throw new Error('無法生成 AI 解答，請稍後再試')
   }
@@ -77,6 +139,9 @@ export async function generateBatchExplanations(
 ): Promise<{ [questionId: string]: AIExplanationResponse }> {
   try {
     const results: { [questionId: string]: AIExplanationResponse } = {}
+    let errorCount = 0
+    let lastErrorType = ''
+    let lastErrorMessage = ''
 
     // 分批處理，避免API限制
     const batchSize = 3 // Gemini 限制較嚴格，減少批次大小
@@ -91,8 +156,11 @@ export async function generateBatchExplanations(
             language
           })
           return { questionId: question.id, explanation }
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Failed to generate explanation for question ${question.id}:`, error)
+          errorCount++
+          lastErrorType = error?.message || 'UNKNOWN_ERROR'
+          lastErrorMessage = error?.message || '未知錯誤'
           return null
         }
       })
@@ -109,6 +177,11 @@ export async function generateBatchExplanations(
       if (i + batchSize < questions.length) {
         await new Promise(resolve => setTimeout(resolve, 2000)) // 增加延遲時間
       }
+    }
+
+    // 如果錯誤數量超過總數的 20%，發送警報給管理員
+    if (errorCount > questions.length * 0.2 && errorCount >= 3) {
+      await sendCriticalErrorAlert(lastErrorType, errorCount, lastErrorMessage)
     }
 
     return results
