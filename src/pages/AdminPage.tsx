@@ -437,7 +437,16 @@ export default function AdminPage() {
                 .order('created_at', { ascending: false })
                 .limit(50)
 
-            if (error) throw error
+            // 如果表格不存在 (PGRST205)，靜默處理
+            if (error) {
+                if (error.code === 'PGRST205') {
+                    console.info('ai_generation_errors table not found - skipping')
+                    setAiErrors([])
+                    setAiErrorStats({ total: 0, unresolved: 0, byType: {} })
+                    return
+                }
+                throw error
+            }
 
             setAiErrors(errors || [])
 

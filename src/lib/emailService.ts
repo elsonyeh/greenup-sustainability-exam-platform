@@ -344,7 +344,20 @@ export async function getEmailStats() {
       .from('email_notifications')
       .select('status, created_at')
 
-    if (error) throw error
+    // 如果表格不存在 (PGRST205)，靜默返回空統計
+    if (error) {
+      if (error.code === 'PGRST205') {
+        console.info('email_notifications table not found - returning empty stats')
+        return {
+          total: 0,
+          todayTotal: 0,
+          pending: 0,
+          sent: 0,
+          failed: 0
+        }
+      }
+      throw error
+    }
 
     const today = new Date().toISOString().split('T')[0]
     const todayEmails = data?.filter(email =>
