@@ -25,49 +25,53 @@ function App() {
 
     useEffect(() => {
         let mounted = true
+        let timeoutId: NodeJS.Timeout
 
-        // 設置超時保護 - 延長為 5 秒，給 Supabase 更多時間回應
-        const timeout = setTimeout(() => {
-            if (mounted) {
-                console.info('Session loading timeout - continuing without authentication')
+        // 快速初始化 - 先設置監聽器
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!mounted) return
+            setSession(session)
+            if (timeoutId) clearTimeout(timeoutId)
+            setLoading(false)
+        })
+
+        // 設置超時保護 - 縮短為 2 秒，更快顯示登入頁面
+        timeoutId = setTimeout(() => {
+            if (mounted && loading) {
+                console.info('Session check timeout - showing login page')
+                setSession(null)
                 setLoading(false)
             }
-        }, 5000)
+        }, 2000)
 
-        // 取得初始 session
+        // 嘗試取得初始 session
         supabase.auth.getSession()
             .then(({ data: { session }, error }) => {
                 if (!mounted) return
 
                 if (error) {
                     console.error('Error getting session:', error)
-                    // 即使有錯誤也繼續，讓使用者可以登入
                 }
+
                 setSession(session)
                 setLoading(false)
-                clearTimeout(timeout)
+                clearTimeout(timeoutId)
             })
             .catch((error) => {
                 if (!mounted) return
 
                 console.error('Failed to get session:', error)
+                setSession(null)
                 setLoading(false)
-                clearTimeout(timeout)
+                clearTimeout(timeoutId)
             })
-
-        // 監聽認證狀態變化
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (!mounted) return
-
-            setSession(session)
-        })
 
         return () => {
             mounted = false
             subscription.unsubscribe()
-            clearTimeout(timeout)
+            if (timeoutId) clearTimeout(timeoutId)
         }
     }, [])
 
