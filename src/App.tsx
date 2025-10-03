@@ -14,6 +14,7 @@ import AdminPage from './pages/AdminPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
 import AboutPage from './pages/AboutPage'
+import DiagnosticPage from './pages/DiagnosticPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
@@ -88,6 +89,9 @@ function App() {
                 <Route path="/register" element={
                     session ? <Navigate to="/" replace /> : <RegisterPage />
                 } />
+
+                {/* 診斷頁面 - 公開路由 */}
+                <Route path="/diagnostic" element={<DiagnosticPage />} />
 
                 {/* 認證回調路由 */}
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />

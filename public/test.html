@@ -88,10 +88,11 @@
     </div>
 
     <script>
-        // 檢查環境變數
-        const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL;
-        const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY;
-        const GEMINI_API_KEY = import.meta.env?.VITE_GEMINI_API_KEY;
+        // 在普通 HTML 中，Vite 會將環境變數替換為實際值
+        // 這些會在構建時被替換
+        const SUPABASE_URL = '%VITE_SUPABASE_URL%';
+        const SUPABASE_ANON_KEY = '%VITE_SUPABASE_ANON_KEY%';
+        const GEMINI_API_KEY = '%VITE_GEMINI_API_KEY%';
 
         // 顯示環境資訊
         const envInfo = document.getElementById('env-info');
