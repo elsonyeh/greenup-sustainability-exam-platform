@@ -18,7 +18,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    flowType: 'pkce',
+    // 修復多分頁衝突：使用 localStorage 並啟用多分頁同步
+    storage: window.localStorage,
+    storageKey: 'supabase.auth.token',
+    // 防止多分頁同時 refresh token 導致衝突
+    debug: false
   }
 })
 

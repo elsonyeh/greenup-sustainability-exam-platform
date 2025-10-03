@@ -14,7 +14,6 @@ import AdminPage from './pages/AdminPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
 import AboutPage from './pages/AboutPage'
-import DiagnosticPage from './pages/DiagnosticPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
@@ -25,53 +24,48 @@ function App() {
 
     useEffect(() => {
         let mounted = true
-        let timeoutId: NodeJS.Timeout
 
-        // 快速初始化 - 先設置監聽器
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (!mounted) return
-            setSession(session)
-            if (timeoutId) clearTimeout(timeoutId)
-            setLoading(false)
-        })
-
-        // 設置超時保護 - 縮短為 2 秒，更快顯示登入頁面
-        timeoutId = setTimeout(() => {
-            if (mounted && loading) {
-                console.info('Session check timeout - showing login page')
-                setSession(null)
+        // 設置超時保護 - 3 秒後自動顯示登入頁面
+        const timeout = setTimeout(() => {
+            if (mounted) {
+                console.info('Session loading timeout - continuing without authentication')
                 setLoading(false)
             }
-        }, 2000)
+        }, 3000)
 
-        // 嘗試取得初始 session
+        // 取得初始 session
         supabase.auth.getSession()
             .then(({ data: { session }, error }) => {
                 if (!mounted) return
 
                 if (error) {
                     console.error('Error getting session:', error)
+                    // 即使有錯誤也繼續，讓使用者可以登入
                 }
-
                 setSession(session)
                 setLoading(false)
-                clearTimeout(timeoutId)
+                clearTimeout(timeout)
             })
             .catch((error) => {
                 if (!mounted) return
 
                 console.error('Failed to get session:', error)
-                setSession(null)
                 setLoading(false)
-                clearTimeout(timeoutId)
+                clearTimeout(timeout)
             })
+
+        // 監聽認證狀態變化（包括多分頁同步）
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!mounted) return
+            setSession(session)
+        })
 
         return () => {
             mounted = false
             subscription.unsubscribe()
-            if (timeoutId) clearTimeout(timeoutId)
+            clearTimeout(timeout)
         }
     }, [])
 
@@ -93,9 +87,6 @@ function App() {
                 <Route path="/register" element={
                     session ? <Navigate to="/" replace /> : <RegisterPage />
                 } />
-
-                {/* 診斷頁面 - 公開路由 */}
-                <Route path="/diagnostic" element={<DiagnosticPage />} />
 
                 {/* 認證回調路由 */}
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />
