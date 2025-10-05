@@ -15,6 +15,8 @@ import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
 import AboutPage from './pages/AboutPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
+import WrongQuestionsPage from './pages/WrongQuestionsPage'
+import FavoritesPage from './pages/FavoritesPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
 
@@ -103,6 +105,8 @@ function App() {
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="about" element={<AboutPage />} />
                     <Route path="admin" element={<AdminPage />} />
+                    <Route path="wrong-questions" element={<WrongQuestionsPage />} />
+                    <Route path="favorites" element={<FavoritesPage />} />
                 </Route>
 
                 {/* 404 頁面 */}

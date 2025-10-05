@@ -41,6 +41,16 @@ interface PracticeHistoryItem {
     accuracy: number
 }
 
+interface PracticeSession {
+    id: string
+    started_at: string
+    completed_at: string | null
+    total_questions: number
+    correct_answers: number
+    duration_seconds: number | null
+    session_type: string
+}
+
 // 動畫數字計數器組件
 function AnimatedCounter({
     end,
@@ -153,6 +163,8 @@ export default function StatsPage() {
         ranking: 0
     })
     const [practiceHistory, setPracticeHistory] = useState<PracticeHistoryItem[]>([])
+    const [recentSessions, setRecentSessions] = useState<PracticeSession[]>([])
+    const [showAllSessions, setShowAllSessions] = useState(false)
 
     const fetchUserStats = async () => {
         if (!user?.id) return
@@ -172,11 +184,14 @@ export default function StatsPage() {
             // 獲取練習記錄
             const { data: sessions } = await supabase
                 .from('practice_sessions')
-                .select('started_at, total_questions, correct_answers')
+                .select('id, started_at, completed_at, total_questions, correct_answers, duration_seconds, session_type')
                 .eq('user_id', user.id)
                 .eq('completed', true)
                 .order('started_at', { ascending: false })
-                .limit(30)
+                .limit(50)
+
+            // 保存最近練習會話
+            setRecentSessions(sessions || [])
 
             // 處理練習歷史 (最近7天)
             const last7Days = []
@@ -500,6 +515,124 @@ export default function StatsPage() {
                                             </p>
                                         </div>
                                     </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 最近練習記錄 */}
+                    <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 mt-6">
+                        <div className="bg-gradient-to-r from-green-600 to-teal-600 px-6 py-4">
+                            <h3 className="text-lg font-bold text-white flex items-center">
+                                <Clock className="h-5 w-5 mr-2" />
+                                最近練習記錄
+                                <span className="ml-auto text-sm font-normal opacity-90">
+                                    共 {recentSessions.length} 次練習
+                                </span>
+                            </h3>
+                        </div>
+
+                        <div className="p-6">
+                            {recentSessions.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <Activity className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                                    <p className="text-gray-600">還沒有練習記錄，開始第一次練習吧！</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {recentSessions.slice(0, showAllSessions ? recentSessions.length : 10).map((session, index) => {
+                                        const accuracy = session.total_questions > 0
+                                            ? Math.round((session.correct_answers / session.total_questions) * 100)
+                                            : 0
+                                        const duration = session.duration_seconds
+                                            ? Math.floor(session.duration_seconds / 60)
+                                            : 0
+                                        const sessionTypeLabel =
+                                            session.session_type === 'wrong_questions' ? '錯題練習' :
+                                            session.session_type === 'favorites' ? '收藏練習' :
+                                            session.session_type === 'category' ? '分類練習' :
+                                            '隨機練習'
+
+                                        return (
+                                            <div
+                                                key={session.id}
+                                                className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200"
+                                            >
+                                                {/* 序號 */}
+                                                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center shadow-md">
+                                                    <span className="text-white font-bold text-sm">
+                                                        {index + 1}
+                                                    </span>
+                                                </div>
+
+                                                {/* 練習資訊 */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <p className="font-semibold text-gray-900">
+                                                            {new Date(session.started_at).toLocaleDateString('zh-TW', {
+                                                                month: 'long',
+                                                                day: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </p>
+                                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                                                            {sessionTypeLabel}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                        <span className="flex items-center gap-1">
+                                                            <Target className="w-3.5 h-3.5" />
+                                                            {session.correct_answers}/{session.total_questions} 題
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <CheckCircle className="w-3.5 h-3.5" />
+                                                            {accuracy}%
+                                                        </span>
+                                                        {duration > 0 && (
+                                                            <span className="flex items-center gap-1">
+                                                                <Clock className="w-3.5 h-3.5" />
+                                                                {duration} 分鐘
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* 正確率徽章 */}
+                                                <div className="flex-shrink-0">
+                                                    <div className={`px-3 py-1.5 rounded-lg ${
+                                                        accuracy >= 80 ? 'bg-green-100 text-green-700' :
+                                                        accuracy >= 60 ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-red-100 text-red-700'
+                                                    }`}>
+                                                        <p className="text-lg font-bold">{accuracy}%</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+
+                            {/* 顯示更多按鈕 */}
+                            {recentSessions.length > 10 && (
+                                <div className="mt-4 text-center">
+                                    <button
+                                        onClick={() => setShowAllSessions(!showAllSessions)}
+                                        className="btn-outline flex items-center gap-2 mx-auto"
+                                    >
+                                        {showAllSessions ? (
+                                            <>
+                                                <TrendingUp className="w-4 h-4 rotate-180" />
+                                                顯示較少
+                                            </>
+                                        ) : (
+                                            <>
+                                                <TrendingUp className="w-4 h-4" />
+                                                顯示全部 ({recentSessions.length} 筆)
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
                             )}
                         </div>

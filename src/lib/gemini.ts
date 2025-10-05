@@ -4,8 +4,10 @@ import { sendAdminAlert } from './emailService'
 
 // 初始化 Gemini 客戶端
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY!)
+
+// 使用最新的 Gemini 2.0 Flash 模型
 const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash',
+  model: 'gemini-2.0-flash-exp',
   generationConfig: {
     temperature: 0.3,
     maxOutputTokens: 1000,
@@ -43,6 +45,16 @@ async function logAIError(
   errorMessage: string,
   errorDetails?: any
 ): Promise<void> {
+  // 只記錄到控制台，避免資料庫表不存在的問題
+  console.error('AI Generation Error:', {
+    questionId,
+    errorType,
+    errorMessage,
+    errorDetails,
+    timestamp: new Date().toISOString()
+  })
+
+  // 嘗試記錄到資料庫（如果表存在的話）
   try {
     await supabase.from('ai_generation_errors').insert({
       question_id: questionId,
@@ -52,7 +64,7 @@ async function logAIError(
       created_at: new Date().toISOString()
     })
   } catch (error) {
-    console.error('Failed to log AI error:', error)
+    // 靜默失敗，已經記錄到控制台了
   }
 }
 
@@ -85,25 +97,45 @@ export async function generateAIExplanation({
 
     const result = await model.generateContent(prompt)
     const response = await result.response
-    const responseText = response.text()
+    let responseText = response.text()
+
+    // 清理回應文字，移除可能的 markdown 代碼塊標記
+    responseText = responseText.trim()
+    if (responseText.startsWith('```json')) {
+      responseText = responseText.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim()
+    } else if (responseText.startsWith('```')) {
+      responseText = responseText.replace(/^```\s*/, '').replace(/```\s*$/, '').trim()
+    }
 
     // 嘗試解析 JSON 回應
     let parsedResponse: AIExplanationResponse
     try {
       parsedResponse = JSON.parse(responseText)
+
+      // 驗證必要欄位
+      if (!parsedResponse.explanation || !parsedResponse.keyPoints || !parsedResponse.relatedConcepts) {
+        throw new Error('Missing required fields')
+      }
+
+      // 將 JSON 轉換為純文字格式
+      const textExplanation = formatExplanationAsText(parsedResponse)
+      parsedResponse.explanation = textExplanation
     } catch (parseError) {
       // JSON 解析失敗，記錄錯誤
       await logAIError(
         question.id,
         'JSON_PARSE_ERROR',
         'AI 回應無法解析為 JSON 格式',
-        { responseText: responseText.substring(0, 500) }
+        {
+          responseText: responseText.substring(0, 500),
+          parseError: parseError instanceof Error ? parseError.message : String(parseError)
+        }
       )
 
-      // 創建一個默認回應
+      // 直接使用回應文字作為解答
       parsedResponse = {
-        explanation: responseText,
-        confidence: 0.8,
+        explanation: responseText.length > 100 ? responseText : '此題目的解答尚未生成完整內容，請稍後再試。',
+        confidence: 0.7,
         keyPoints: ['由 AI 生成的解答'],
         relatedConcepts: ['永續發展', '環境保護']
       }
@@ -113,21 +145,47 @@ export async function generateAIExplanation({
 
   } catch (error: any) {
     // 記錄錯誤到資料庫
-    const errorType = error?.message?.includes('API_KEY_INVALID') ? 'API_KEY_INVALID' :
-                      error?.message?.includes('QUOTA_EXCEEDED') ? 'QUOTA_EXCEEDED' :
-                      error?.message?.includes('RATE_LIMIT_EXCEEDED') ? 'RATE_LIMIT_EXCEEDED' :
-                      error?.message?.includes('SAFETY') ? 'SAFETY_FILTER' :
+    const errorMessage = error?.message || ''
+    const errorType = errorMessage.includes('API_KEY_INVALID') ? 'API_KEY_INVALID' :
+                      errorMessage.includes('exceeded your current quota') ? 'QUOTA_EXCEEDED' :
+                      errorMessage.includes('429') ? 'QUOTA_EXCEEDED' :
+                      errorMessage.includes('Too Many Requests') ? 'QUOTA_EXCEEDED' :
+                      errorMessage.includes('RATE_LIMIT') ? 'RATE_LIMIT_EXCEEDED' :
+                      errorMessage.includes('SAFETY') ? 'SAFETY_FILTER' :
+                      errorMessage.includes('404') ? 'MODEL_NOT_FOUND' :
                       'UNKNOWN_ERROR'
 
     await logAIError(
       question.id,
       errorType,
       error?.message || '未知錯誤',
-      { stack: error?.stack }
+      {
+        stack: error?.stack,
+        name: error?.name,
+        cause: error?.cause
+      }
     )
 
     console.error('Error generating AI explanation:', error)
-    throw new Error('無法生成 AI 解答，請稍後再試')
+    console.error('Error details:', {
+      message: error?.message,
+      type: errorType,
+      stack: error?.stack
+    })
+
+    // 提供更具體的錯誤訊息
+    let userErrorMessage = '無法生成 AI 解答，請稍後再試'
+    if (errorType === 'API_KEY_INVALID') {
+      userErrorMessage = 'API 金鑰無效，請檢查設定'
+    } else if (errorType === 'QUOTA_EXCEEDED') {
+      userErrorMessage = 'API 配額已用盡（免費版每天限 50 次），請明天再試或升級付費方案'
+    } else if (errorType === 'RATE_LIMIT_EXCEEDED') {
+      userErrorMessage = 'API 呼叫過於頻繁，請稍後再試'
+    } else if (errorType === 'MODEL_NOT_FOUND') {
+      userErrorMessage = 'AI 模型不可用，請聯繫管理員'
+    }
+
+    throw new Error(userErrorMessage)
   }
 }
 
@@ -191,6 +249,27 @@ export async function generateBatchExplanations(
   }
 }
 
+// 將 JSON 格式的解析轉換為純文字格式
+function formatExplanationAsText(response: AIExplanationResponse): string {
+  let text = response.explanation
+
+  // 添加關鍵要點
+  if (response.keyPoints && response.keyPoints.length > 0) {
+    text += '\n\n【關鍵要點】\n'
+    response.keyPoints.forEach((point, index) => {
+      text += `${index + 1}. ${point}\n`
+    })
+  }
+
+  // 添加相關概念
+  if (response.relatedConcepts && response.relatedConcepts.length > 0) {
+    text += '\n【相關概念】\n'
+    text += response.relatedConcepts.join('、')
+  }
+
+  return text
+}
+
 // 創建解答提示詞
 function createExplanationPrompt(
   question: Question,
@@ -220,10 +299,12 @@ ${options}
 
 ${context ? `相關背景：${context}` : ''}
 
-請以JSON格式回應，包含以下欄位：
+**重要：你必須只回應一個純 JSON 物件，不要包含任何其他文字、說明或 markdown 格式。**
+
+請以以下 JSON 格式回應：
 {
   "explanation": "詳細解答說明 (200-400字)",
-  "confidence": 信心度數字 (0-1之間),
+  "confidence": 0.9,
   "keyPoints": ["關鍵要點1", "關鍵要點2", "關鍵要點3"],
   "relatedConcepts": ["相關概念1", "相關概念2", "相關概念3"]
 }
@@ -233,7 +314,8 @@ ${context ? `相關背景：${context}` : ''}
 2. 解釋其他選項為什麼不正確
 3. 提供相關的永續發展概念背景
 4. 使用繁體中文回應
-5. 確保回應是有效的JSON格式`,
+5. 只回應 JSON，不要有任何其他內容
+6. confidence 值必須是 0 到 1 之間的數字`,
 
     'zh-CN': `你是一位可持续发展领域的专家教师，专门为可持续发展基础能力测验提供详细的解答说明。
 

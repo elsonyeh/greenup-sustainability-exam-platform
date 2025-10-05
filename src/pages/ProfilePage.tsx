@@ -68,20 +68,47 @@ export default function ProfilePage() {
             // 計算連續天數
             let consecutiveDays = 0
             if (recentSessions && recentSessions.length > 0) {
-                const today = new Date()
+                // 獲取所有練習的日期（只保留日期部分，忽略時間）
                 const dates = recentSessions.map(session => {
                     const date = new Date(session.started_at)
-                    return date.toDateString()
+                    // 將日期標準化為 YYYY-MM-DD 格式，避免時區問題
+                    return date.toISOString().split('T')[0]
                 })
-                const uniqueDates = [...new Set(dates)].sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
 
-                for (let i = 0; i < uniqueDates.length; i++) {
-                    const checkDate = new Date(today)
-                    checkDate.setDate(today.getDate() - i)
-                    if (uniqueDates[i] === checkDate.toDateString()) {
-                        consecutiveDays++
-                    } else {
-                        break
+                // 去重並排序（降序，最新的日期在前）
+                const uniqueDates = [...new Set(dates)].sort((a, b) => {
+                    return new Date(b).getTime() - new Date(a).getTime()
+                })
+
+                // 從今天開始往回檢查
+                const today = new Date()
+                const todayStr = today.toISOString().split('T')[0]
+
+                // 如果最近的練習日期不是今天也不是昨天，連續天數為 0
+                const mostRecentDate = uniqueDates[0]
+                const mostRecentDateObj = new Date(mostRecentDate)
+                const yesterday = new Date(today)
+                yesterday.setDate(yesterday.getDate() - 1)
+                const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+                // 檢查最近一次練習是今天或昨天
+                if (mostRecentDate !== todayStr && mostRecentDate !== yesterdayStr) {
+                    consecutiveDays = 0
+                } else {
+                    // 從最近的練習日期開始往回檢查連續性
+                    let checkDate = new Date(mostRecentDate)
+
+                    for (let i = 0; i < uniqueDates.length; i++) {
+                        const currentDateStr = checkDate.toISOString().split('T')[0]
+
+                        if (uniqueDates[i] === currentDateStr) {
+                            consecutiveDays++
+                            // 往前一天
+                            checkDate.setDate(checkDate.getDate() - 1)
+                        } else {
+                            // 日期不連續，停止計算
+                            break
+                        }
                     }
                 }
             }
@@ -106,12 +133,19 @@ export default function ProfilePage() {
         }
     }, [user?.id])
 
-    // 同步 profile 數據到 formData
+    // 同步 profile 數據到 formData 和 preferences
     useEffect(() => {
         if (profile) {
             setFormData({
                 full_name: profile.full_name || '',
                 email: profile.email || ''
+            })
+
+            // 載入偏好設定
+            setPreferences({
+                emailNotifications: profile.email_notifications ?? true,
+                practiceReminders: profile.practice_reminders ?? true,
+                privacyMode: profile.privacy_mode ?? false
             })
         }
     }, [profile])
@@ -123,11 +157,50 @@ export default function ProfilePage() {
         })
     }
 
-    const handlePreferenceChange = (preferenceKey: keyof typeof preferences) => {
+    const handlePreferenceChange = async (preferenceKey: keyof typeof preferences) => {
+        const newValue = !preferences[preferenceKey]
+
+        // 立即更新 UI
         setPreferences(prev => ({
             ...prev,
-            [preferenceKey]: !prev[preferenceKey]
+            [preferenceKey]: newValue
         }))
+
+        // 儲存到資料庫
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    [preferenceKey === 'emailNotifications' ? 'email_notifications' :
+                     preferenceKey === 'practiceReminders' ? 'practice_reminders' :
+                     'privacy_mode']: newValue,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', user?.id)
+
+            if (error) {
+                console.error('Error updating preference:', error)
+                // 回滾 UI 更新
+                setPreferences(prev => ({
+                    ...prev,
+                    [preferenceKey]: !newValue
+                }))
+                setError('偏好設定更新失敗')
+                setTimeout(() => setError(''), 3000)
+            } else {
+                setSuccess('偏好設定已更新')
+                setTimeout(() => setSuccess(''), 2000)
+            }
+        } catch (err) {
+            console.error('Error saving preference:', err)
+            // 回滾 UI 更新
+            setPreferences(prev => ({
+                ...prev,
+                [preferenceKey]: !newValue
+            }))
+            setError('偏好設定更新失敗')
+            setTimeout(() => setError(''), 3000)
+        }
     }
 
     const handleSave = async () => {

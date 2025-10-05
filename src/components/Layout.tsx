@@ -11,12 +11,16 @@ import {
     LogOut,
     Menu,
     X,
-    Shield
+    Shield,
+    AlertCircle,
+    Heart
 } from 'lucide-react'
 
 const navigationItems = [
     { name: '首頁', href: '/', icon: Home },
     { name: '開始練習', href: '/practice', icon: BookOpen },
+    { name: '錯題庫', href: '/wrong-questions', icon: AlertCircle },
+    { name: '收藏題庫', href: '/favorites', icon: Heart },
     { name: '學習統計', href: '/stats', icon: BarChart3 },
     { name: '排行榜', href: '/leaderboard', icon: Trophy },
     { name: '個人檔案', href: '/profile', icon: User },

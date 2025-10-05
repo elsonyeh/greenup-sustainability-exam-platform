@@ -25,12 +25,13 @@ interface Question {
     option_d: string | null
     correct_answer: 'A' | 'B' | 'C' | 'D'
     explanation: string | null
+    ai_generated_explanation: string | null
     category_name: string
     difficulty_level: number
 }
 
 export default function PracticePage() {
-    const { sessionId: _sessionId } = useParams()
+    const { sessionId } = useParams()
     const navigate = useNavigate()
     const { profile: _profile, user } = useAuth()
 
@@ -68,6 +69,83 @@ export default function PracticePage() {
         try {
             setQuestionsLoading(true)
 
+            // 如果有 sessionId，獲取該會話的類型和題目
+            if (sessionId && user) {
+                const { data: session, error: sessionError } = await supabase
+                    .from('practice_sessions')
+                    .select('session_type')
+                    .eq('id', sessionId)
+                    .single()
+
+                if (sessionError) throw sessionError
+
+                setPracticeSessionId(sessionId)
+
+                let questionIds: string[] = []
+
+                if (session.session_type === 'wrong_questions') {
+                    // 獲取錯題
+                    const { data: wrongQuestions, error: wrongError } = await supabase
+                        .from('wrong_answers')
+                        .select('question_id')
+                        .eq('user_id', user.id)
+                        .eq('mastered', false)
+
+                    if (wrongError) throw wrongError
+                    questionIds = wrongQuestions?.map(wq => wq.question_id) || []
+                } else if (session.session_type === 'favorites') {
+                    // 獲取收藏題目
+                    const { data: favorites, error: favError } = await supabase
+                        .from('user_favorites')
+                        .select('question_id')
+                        .eq('user_id', user.id)
+
+                    if (favError) throw favError
+                    questionIds = favorites?.map(f => f.question_id) || []
+                }
+
+                if (questionIds.length > 0) {
+                    const { data: questionsData, error } = await supabase
+                        .from('questions')
+                        .select(`
+                            id,
+                            question_text,
+                            option_a,
+                            option_b,
+                            option_c,
+                            option_d,
+                            correct_answer,
+                            explanation,
+                            ai_generated_explanation,
+                            difficulty_level,
+                            question_categories(name)
+                        `)
+                        .in('id', questionIds)
+
+                    if (error) throw error
+
+                    const formattedQuestions: Question[] = questionsData?.map(q => ({
+                        id: q.id,
+                        question_text: q.question_text,
+                        option_a: q.option_a,
+                        option_b: q.option_b,
+                        option_c: q.option_c,
+                        option_d: q.option_d,
+                        correct_answer: q.correct_answer,
+                        explanation: q.explanation,
+                        ai_generated_explanation: q.ai_generated_explanation,
+                        category_name: (q.question_categories as any)?.name || '綜合應用',
+                        difficulty_level: q.difficulty_level
+                    })) || []
+
+                    setQuestions(formattedQuestions)
+                    setPracticeStarted(true)
+                    setStartTime(new Date())
+                    return
+                }
+            }
+
+            // 默認：隨機練習
             const { data: questionsData, error } = await supabase
                 .from('questions')
                 .select(`
@@ -79,6 +157,7 @@ export default function PracticePage() {
                     option_d,
                     correct_answer,
                     explanation,
+                    ai_generated_explanation,
                     difficulty_level,
                     question_categories(name)
                 `)
@@ -96,6 +175,7 @@ export default function PracticePage() {
                 option_d: q.option_d,
                 correct_answer: q.correct_answer,
                 explanation: q.explanation,
+                ai_generated_explanation: q.ai_generated_explanation,
                 category_name: (q.question_categories as any)?.name || '綜合應用',
                 difficulty_level: q.difficulty_level
             })) || []
@@ -112,7 +192,29 @@ export default function PracticePage() {
 
     useEffect(() => {
         fetchQuestions()
-    }, [])
+        if (user) {
+            fetchUserFavorites()
+        }
+    }, [sessionId, user])
+
+    // 載入使用者收藏的題目
+    const fetchUserFavorites = async () => {
+        if (!user) return
+
+        try {
+            const { data, error } = await supabase
+                .from('user_favorites')
+                .select('question_id')
+                .eq('user_id', user.id)
+
+            if (error) throw error
+
+            const favoriteIds = new Set(data?.map(f => f.question_id) || [])
+            setFavoriteQuestions(favoriteIds)
+        } catch (error) {
+            console.error('Error fetching user favorites:', error)
+        }
+    }
 
     // 計時器
     useEffect(() => {
@@ -193,16 +295,53 @@ export default function PracticePage() {
         }
     }
 
-    const handleToggleFavorite = (questionId: string) => {
+    const handleToggleFavorite = async (questionId: string) => {
+        const isFavorited = favoriteQuestions.has(questionId)
+
+        // 立即更新 UI
         setFavoriteQuestions(prev => {
             const newSet = new Set(prev)
-            if (newSet.has(questionId)) {
+            if (isFavorited) {
                 newSet.delete(questionId)
             } else {
                 newSet.add(questionId)
             }
             return newSet
         })
+
+        // 同步到資料庫
+        if (!user) return
+
+        try {
+            if (isFavorited) {
+                // 移除收藏
+                await supabase
+                    .from('user_favorites')
+                    .delete()
+                    .eq('user_id', user.id)
+                    .eq('question_id', questionId)
+            } else {
+                // 新增收藏
+                await supabase
+                    .from('user_favorites')
+                    .insert({
+                        user_id: user.id,
+                        question_id: questionId
+                    })
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error)
+            // 如果資料庫操作失敗，回滾 UI 變更
+            setFavoriteQuestions(prev => {
+                const newSet = new Set(prev)
+                if (isFavorited) {
+                    newSet.add(questionId)
+                } else {
+                    newSet.delete(questionId)
+                }
+                return newSet
+            })
+        }
     }
 
     const handleFinishPractice = async () => {
@@ -292,27 +431,64 @@ export default function PracticePage() {
                         })
                 }
 
-                // 保存錯題記錄
-                const wrongAnswers = Object.entries(finalAnswers)
+                // 保存錯題記錄和處理已掌握的題目
+                const wrongQuestionIds = Object.entries(finalAnswers)
                     .filter(([questionId, answer]) => {
                         const question = questions.find(q => q.id === questionId)
                         return question && question.correct_answer !== answer
                     })
-                    .map(([questionId]) => ({
-                        user_id: user.id,
-                        question_id: questionId,
-                        wrong_count: 1,
-                        mastered: false
-                    }))
+                    .map(([questionId]) => questionId)
 
-                if (wrongAnswers.length > 0) {
-                    for (const record of wrongAnswers) {
-                        await supabase
+                const correctQuestionIds = Object.entries(finalAnswers)
+                    .filter(([questionId, answer]) => {
+                        const question = questions.find(q => q.id === questionId)
+                        return question && question.correct_answer === answer
+                    })
+                    .map(([questionId]) => questionId)
+
+                // 處理答錯的題目
+                if (wrongQuestionIds.length > 0) {
+                    for (const questionId of wrongQuestionIds) {
+                        // 檢查是否已存在錯題記錄
+                        const { data: existingRecord } = await supabase
                             .from('wrong_answers')
-                            .upsert(record, {
-                                onConflict: 'user_id,question_id'
-                            })
+                            .select('id, wrong_count')
+                            .eq('user_id', user.id)
+                            .eq('question_id', questionId)
+                            .single()
+
+                        if (existingRecord) {
+                            // 更新錯誤次數
+                            await supabase
+                                .from('wrong_answers')
+                                .update({
+                                    wrong_count: existingRecord.wrong_count + 1,
+                                    last_wrong_at: new Date().toISOString(),
+                                    mastered: false
+                                })
+                                .eq('id', existingRecord.id)
+                        } else {
+                            // 新增錯題記錄
+                            await supabase
+                                .from('wrong_answers')
+                                .insert({
+                                    user_id: user.id,
+                                    question_id: questionId,
+                                    wrong_count: 1,
+                                    mastered: false
+                                })
+                        }
                     }
+                }
+
+                // 處理答對的題目：如果之前是錯題且未掌握，標記為已掌握
+                if (correctQuestionIds.length > 0) {
+                    await supabase
+                        .from('wrong_answers')
+                        .update({ mastered: true })
+                        .eq('user_id', user.id)
+                        .in('question_id', correctQuestionIds)
+                        .eq('mastered', false)
                 }
             }
         } catch (error) {
@@ -449,7 +625,7 @@ export default function PracticePage() {
         console.log('結果頁面 - totalQuestions:', totalQuestions)
 
         return (
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-4xl mx-auto px-4">
                 {/* 成績卡片 */}
                 <div className="card text-center mb-6">
                     <div className="card-content">
@@ -590,19 +766,19 @@ export default function PracticePage() {
 
                         {/* 錯題清單 */}
                         {results.wrongAnswers > 0 && (
-                            <div className="bg-white rounded-xl border-2 border-red-300 mb-6 overflow-hidden shadow-lg">
-                                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
-                                    <h3 className="font-bold text-white text-lg flex items-center">
-                                        <div className="bg-white/20 rounded-lg p-2 mr-3">
+                            <div className="bg-white rounded-xl border-2 border-red-300 mb-6 shadow-lg w-full overflow-hidden">
+                                <div className="bg-gradient-to-r from-red-500 to-red-600 px-4 sm:px-6 py-4">
+                                    <h3 className="font-bold text-white text-lg flex items-center flex-wrap gap-2">
+                                        <div className="bg-white/20 rounded-lg p-2">
                                             <XCircle className="h-6 w-6 text-white" />
                                         </div>
                                         錯題回顧
-                                        <span className="ml-3 px-3 py-1 bg-white/30 backdrop-blur rounded-full text-sm">
+                                        <span className="px-3 py-1 bg-white/30 backdrop-blur rounded-full text-sm">
                                             {results.wrongAnswers} 題
                                         </span>
                                     </h3>
                                 </div>
-                                <div className="p-6 space-y-4 bg-gradient-to-b from-red-50/50 to-white">
+                                <div className="p-4 sm:p-6 space-y-4 bg-gradient-to-b from-red-50/50 to-white max-h-[600px] overflow-y-auto overflow-x-hidden">
                                     {questions
                                         .filter(q => {
                                             const userAnswer = answers[q.id]
@@ -613,43 +789,41 @@ export default function PracticePage() {
                                             return (
                                                 <div
                                                     key={question.id}
-                                                    className="bg-white border-2 border-gray-200 rounded-xl p-5 hover:border-red-400 hover:shadow-md transition-all duration-300"
+                                                    className="bg-white border-2 border-gray-200 rounded-xl p-4 sm:p-5 hover:border-red-400 hover:shadow-md transition-all duration-300 w-full overflow-hidden"
                                                 >
-                                                    <div className="flex items-start justify-between mb-4">
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-2 mb-3">
-                                                                <span className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-lg shadow-sm">
-                                                                    <XCircle className="h-3 w-3 mr-1" />
-                                                                    錯題 {index + 1}
-                                                                </span>
-                                                                <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg">
-                                                                    {question.category_name}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-gray-900 font-semibold text-base leading-relaxed">
-                                                                {question.question_text}
-                                                            </p>
+                                                    <div className="mb-4 w-full">
+                                                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                                                            <span className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-lg shadow-sm flex-shrink-0">
+                                                                <XCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+                                                                錯題 {index + 1}
+                                                            </span>
+                                                            <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg flex-shrink-0">
+                                                                {question.category_name}
+                                                            </span>
                                                         </div>
+                                                        <p className="text-gray-900 font-semibold text-base leading-relaxed break-words overflow-wrap-anywhere">
+                                                            {question.question_text}
+                                                        </p>
                                                     </div>
 
-                                                    <div className="space-y-3 mb-4">
-                                                        <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-3">
-                                                            <div className="flex items-start gap-3">
+                                                    <div className="space-y-3 mb-4 w-full">
+                                                        <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-3 overflow-hidden">
+                                                            <div className="flex items-start gap-2 sm:gap-3">
                                                                 <XCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-                                                                <div className="flex-1">
+                                                                <div className="flex-1 min-w-0 overflow-hidden">
                                                                     <p className="text-xs text-red-700 font-medium mb-1">您的答案</p>
-                                                                    <p className="font-semibold text-red-700">
+                                                                    <p className="font-semibold text-red-700 break-words overflow-wrap-anywhere text-sm sm:text-base">
                                                                         {userAnswer}. {question[`option_${userAnswer.toLowerCase()}` as keyof Question] as string}
                                                                     </p>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className="bg-green-50 border-l-4 border-green-500 rounded-r-lg p-3">
-                                                            <div className="flex items-start gap-3">
+                                                        <div className="bg-green-50 border-l-4 border-green-500 rounded-r-lg p-3 overflow-hidden">
+                                                            <div className="flex items-start gap-2 sm:gap-3">
                                                                 <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                                                <div className="flex-1">
+                                                                <div className="flex-1 min-w-0 overflow-hidden">
                                                                     <p className="text-xs text-green-700 font-medium mb-1">正確答案</p>
-                                                                    <p className="font-semibold text-green-700">
+                                                                    <p className="font-semibold text-green-700 break-words overflow-wrap-anywhere text-sm sm:text-base">
                                                                         {question.correct_answer}. {question[`option_${question.correct_answer.toLowerCase()}` as keyof Question] as string}
                                                                     </p>
                                                                 </div>
@@ -662,10 +836,10 @@ export default function PracticePage() {
                                                             setSelectedQuestionForExplanation(question)
                                                             setShowExplanationModal(true)
                                                         }}
-                                                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md flex items-center justify-center"
+                                                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md flex items-center justify-center gap-2"
                                                     >
-                                                        <BookOpen className="h-5 w-5 mr-2" />
-                                                        查看詳細解析
+                                                        <BookOpen className="h-5 w-5 flex-shrink-0" />
+                                                        <span className="truncate">查看詳細解析</span>
                                                     </button>
                                                 </div>
                                             )
@@ -800,7 +974,11 @@ export default function PracticePage() {
                                         詳細解析
                                     </h5>
                                     <div className="text-blue-900 leading-relaxed bg-white/60 backdrop-blur rounded-lg p-4">
-                                        {selectedQuestionForExplanation.explanation || (
+                                        {selectedQuestionForExplanation.ai_generated_explanation || selectedQuestionForExplanation.explanation ? (
+                                            <div className="whitespace-pre-wrap">
+                                                {selectedQuestionForExplanation.ai_generated_explanation || selectedQuestionForExplanation.explanation}
+                                            </div>
+                                        ) : (
                                             <p className="text-gray-500 italic">暫無解析內容</p>
                                         )}
                                     </div>

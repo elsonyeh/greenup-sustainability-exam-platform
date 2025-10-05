@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { Trophy, Medal, Award, Crown, Calendar, TrendingUp } from 'lucide-react'
+import { Trophy, Medal, Award, Crown, Calendar, TrendingUp, BookOpen, Target } from 'lucide-react'
 
 interface LeaderboardUser {
     rank: number
@@ -50,16 +50,24 @@ export default function LeaderboardPage() {
 
             if (error) throw error
 
-            const leaderboard: LeaderboardUser[] = rankings?.map((ranking, index) => ({
-                rank: index + 1,
-                user_id: ranking.user_id,
-                name: (ranking.profiles as any).full_name || '匿名用戶',
-                score: ranking.score,
-                accuracy: Math.round(ranking.accuracy_rate * 100),
-                questionsAnswered: ranking.questions_answered,
-                avatar: (ranking.profiles as any).avatar_url,
-                isCurrentUser: ranking.user_id === user?.id
-            })) || []
+            const leaderboard: LeaderboardUser[] = rankings?.map((ranking, index) => {
+                // 如果 accuracy_rate 小於 1，表示是小數格式（0.75），需要乘以 100
+                // 如果大於等於 1，表示已經是百分比格式（75），不需要再乘以 100
+                const accuracyValue = ranking.accuracy_rate < 1
+                    ? Math.round(ranking.accuracy_rate * 100)
+                    : Math.round(ranking.accuracy_rate)
+
+                return {
+                    rank: index + 1,
+                    user_id: ranking.user_id,
+                    name: (ranking.profiles as any).full_name || '匿名用戶',
+                    score: ranking.score,
+                    accuracy: accuracyValue,
+                    questionsAnswered: ranking.questions_answered,
+                    avatar: (ranking.profiles as any).avatar_url,
+                    isCurrentUser: ranking.user_id === user?.id
+                }
+            }) || []
 
             setDailyLeaderboard(leaderboard)
         } catch (error) {
@@ -149,16 +157,24 @@ export default function LeaderboardPage() {
 
             if (error) throw error
 
-            const leaderboard: LeaderboardUser[] = rankings?.map((ranking, index) => ({
-                rank: index + 1,
-                user_id: ranking.user_id,
-                name: (ranking.profiles as any).full_name || '匿名用戶',
-                score: ranking.total_score,
-                accuracy: Math.round(ranking.overall_accuracy_rate * 100),
-                questionsAnswered: ranking.total_questions_answered,
-                avatar: (ranking.profiles as any).avatar_url,
-                isCurrentUser: ranking.user_id === user?.id
-            })) || []
+            const leaderboard: LeaderboardUser[] = rankings?.map((ranking, index) => {
+                // 如果 overall_accuracy_rate 小於 1，表示是小數格式（0.75），需要乘以 100
+                // 如果大於等於 1，表示已經是百分比格式（75），不需要再乘以 100
+                const accuracyValue = ranking.overall_accuracy_rate < 1
+                    ? Math.round(ranking.overall_accuracy_rate * 100)
+                    : Math.round(ranking.overall_accuracy_rate)
+
+                return {
+                    rank: index + 1,
+                    user_id: ranking.user_id,
+                    name: (ranking.profiles as any).full_name || '匿名用戶',
+                    score: ranking.total_score,
+                    accuracy: accuracyValue,
+                    questionsAnswered: ranking.total_questions_answered,
+                    avatar: (ranking.profiles as any).avatar_url,
+                    isCurrentUser: ranking.user_id === user?.id
+                }
+            }) || []
 
             setMonthlyLeaderboard(leaderboard)
         } catch (error) {
@@ -283,7 +299,7 @@ export default function LeaderboardPage() {
                                 <div className="mt-4 mb-4">
                                     {user.avatar ? (
                                         <img
-                                            className="w-16 h-16 rounded-full mx-auto border-4 border-white shadow-lg"
+                                            className="w-16 h-16 rounded-full mx-auto border-4 border-white shadow-lg object-cover"
                                             src={user.avatar}
                                             alt={user.name}
                                         />
@@ -322,66 +338,116 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* 完整排行榜 */}
-                <div className="card">
-                <div className="card-header">
-                    <h3 className="card-title flex items-center">
-                        <Trophy className="h-5 w-5 mr-2" />
-                        完整排行榜
-                    </h3>
-                </div>
-                <div className="card-content">
-                    <div className="space-y-2">
+                <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-gray-100">
+                    {/* 排行榜標題 */}
+                    <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 px-6 py-5">
+                        <h3 className="text-xl font-bold text-white flex items-center">
+                            <Trophy className="h-6 w-6 mr-3" />
+                            完整排行榜
+                            <span className="ml-auto text-sm font-normal opacity-90">
+                                共 {currentData.length} 位學習者
+                            </span>
+                        </h3>
+                    </div>
+
+                    {/* 排行榜列表 */}
+                    <div className="divide-y divide-gray-100">
                         {currentData.map((user, index) => (
                             <div
                                 key={`${user.rank}-${index}`}
-                                className={`leaderboard-item ${user.isCurrentUser ? 'bg-primary/5 border border-primary/20 rounded-lg' : ''
-                                    }`}
+                                className={`px-6 py-4 transition-all duration-200 hover:bg-gray-50 ${
+                                    user.isCurrentUser
+                                        ? 'bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 border-l-4 border-blue-500'
+                                        : user.rank <= 3
+                                            ? 'bg-gradient-to-r from-gray-50/50 to-white'
+                                            : ''
+                                }`}
                             >
-                                <div className="flex items-center flex-1">
-                                    {/* 排名 */}
-                                    <div className={`rank-badge mr-4 ${getRankBadgeClass(user.rank)}`}>
-                                        {user.rank}
+                                <div className="flex items-center gap-4">
+                                    {/* 排名徽章 */}
+                                    <div className="flex-shrink-0">
+                                        {user.rank <= 3 ? (
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${
+                                                user.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
+                                                user.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
+                                                'bg-gradient-to-br from-orange-400 to-orange-600'
+                                            }`}>
+                                                <span className="text-white font-bold text-lg">
+                                                    {user.rank}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${
+                                                user.isCurrentUser
+                                                    ? 'bg-blue-100 border-blue-500 text-blue-700'
+                                                    : 'bg-gray-100 border-gray-300 text-gray-700'
+                                            }`}>
+                                                <span className="font-bold text-lg">
+                                                    {user.rank}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {/* 頭像和姓名 */}
-                                    <div className="flex items-center flex-1">
+                                    {/* 用戶資訊 */}
+                                    <div className="flex items-center flex-1 min-w-0 gap-3">
+                                        {/* 頭像 */}
                                         {user.avatar ? (
                                             <img
-                                                className="w-10 h-10 rounded-full mr-3"
+                                                className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
                                                 src={user.avatar}
                                                 alt={user.name}
                                             />
                                         ) : (
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold mr-3 shadow-md">
-                                                {user.name.charAt(0)}
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold text-lg shadow-md border-2 border-white">
+                                                {user.name.charAt(0).toUpperCase()}
                                             </div>
                                         )}
-                                        <div>
-                                            <p className={`font-medium ${user.isCurrentUser ? 'text-primary' : 'text-gray-900'}`}>
-                                                {user.name}
+
+                                        {/* 姓名和統計 */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className={`font-bold text-base truncate ${
+                                                    user.isCurrentUser ? 'text-blue-700' : 'text-gray-900'
+                                                }`}>
+                                                    {user.name}
+                                                </p>
                                                 {user.isCurrentUser && (
-                                                    <span className="ml-2 px-2 py-1 bg-primary text-white text-xs rounded-full">
-                                                        您
+                                                    <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full flex-shrink-0">
+                                                        你
                                                     </span>
                                                 )}
-                                            </p>
-                                            <p className="text-sm text-gray-600">
-                                                {user.questionsAnswered} 題 · {user.accuracy}% 正確率
-                                            </p>
+                                                {user.rank === 1 && !user.isCurrentUser && (
+                                                    <Crown className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3 text-sm text-gray-600">
+                                                <span className="flex items-center gap-1">
+                                                    <BookOpen className="w-3.5 h-3.5" />
+                                                    {user.questionsAnswered} 題
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <Target className="w-3.5 h-3.5" />
+                                                    {user.accuracy}%
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* 分數 */}
-                                <div className="text-right">
-                                    <p className={`text-xl font-bold ${user.isCurrentUser ? 'text-primary' : 'text-gray-900'}`}>
-                                        {user.score}
-                                    </p>
-                                    <p className="text-sm text-gray-600">分</p>
+                                    {/* 分數 */}
+                                    <div className="flex-shrink-0 text-right">
+                                        <p className={`text-2xl font-black ${
+                                            user.isCurrentUser ? 'text-blue-600' :
+                                            user.rank <= 3 ? 'text-gray-900' :
+                                            'text-gray-700'
+                                        }`}>
+                                            {user.score}
+                                        </p>
+                                        <p className="text-xs text-gray-500 font-medium">分數</p>
+                                    </div>
                                 </div>
                             </div>
                         ))}
-                    </div>
                     </div>
                 </div>
                 </>

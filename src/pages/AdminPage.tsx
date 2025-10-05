@@ -51,6 +51,8 @@ import {
     AreaChart
 } from 'recharts'
 
+import { generateBatchExplanations } from '../lib/gemini'
+
 // 介面定義
 interface ExamDocument {
     id: string
@@ -165,6 +167,25 @@ export default function AdminPage() {
         total: 0,
         unresolved: 0,
         byType: {} as Record<string, number>
+    })
+    const [generatingExplanations, setGeneratingExplanations] = useState(false)
+    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+    const [editFormData, setEditFormData] = useState({
+        question_text: '',
+        option_a: '',
+        option_b: '',
+        option_c: '',
+        option_d: '',
+        correct_answer: 'A' as 'A' | 'B' | 'C' | 'D',
+        explanation: '',
+        ai_generated_explanation: '',
+        difficulty_level: 3
+    })
+    const [editingUser, setEditingUser] = useState<User | null>(null)
+    const [userEditFormData, setUserEditFormData] = useState({
+        full_name: '',
+        email: '',
+        role: 'user' as 'user' | 'admin'
     })
 
     // 系統設定狀態
@@ -465,22 +486,40 @@ export default function AdminPage() {
     }
 
     const markErrorAsResolved = async (errorId: string) => {
+        if (!user) {
+            alert('請先登入')
+            return
+        }
+
         try {
             const { error } = await supabase
                 .from('ai_generation_errors')
                 .update({
                     resolved: true,
-                    resolved_at: new Date().toISOString()
+                    resolved_at: new Date().toISOString(),
+                    resolved_by: user.id
                 })
                 .eq('id', errorId)
 
-            if (error) throw error
+            if (error) {
+                console.error('Supabase error:', error)
+                throw error
+            }
 
             // 重新載入錯誤列表
             await fetchAIErrors()
-        } catch (error) {
+
+            // 顯示成功訊息
+            alert('已成功標記為已解決')
+        } catch (error: any) {
             console.error('Error marking error as resolved:', error)
-            alert('標記為已解決失敗')
+
+            // 顯示詳細錯誤訊息
+            if (error.message) {
+                alert(`標記為已解決失敗: ${error.message}`)
+            } else {
+                alert('標記為已解決失敗，請檢查控制台以獲取更多資訊')
+            }
         }
     }
 
@@ -571,6 +610,218 @@ export default function AdminPage() {
             ])
         } finally {
             setRefreshing(false)
+        }
+    }
+
+    const handleBatchGenerateExplanations = async () => {
+        if (generatingExplanations) return
+
+        // 找出所有沒有 AI 解析的題目
+        const questionsWithoutExplanation = questions.filter(q => !q.ai_generated_explanation)
+
+        if (questionsWithoutExplanation.length === 0) {
+            alert('所有題目都已經有 AI 解析了！')
+            return
+        }
+
+        const confirmed = confirm(`準備為 ${questionsWithoutExplanation.length} 題生成 AI 解析，確定要繼續嗎？\n\n這可能需要幾分鐘時間。`)
+        if (!confirmed) return
+
+        setGeneratingExplanations(true)
+        try {
+            // 批量生成解析
+            const results = await generateBatchExplanations(
+                questionsWithoutExplanation.map(q => ({
+                    id: q.id,
+                    question_text: q.question_text,
+                    option_a: q.option_a,
+                    option_b: q.option_b,
+                    option_c: q.option_c,
+                    option_d: q.option_d,
+                    correct_answer: q.correct_answer
+                }))
+            )
+
+            // 將結果儲存到資料庫
+            let successCount = 0
+            let failCount = 0
+
+            for (const [questionId, explanation] of Object.entries(results)) {
+                try {
+                    const { error } = await supabase
+                        .from('questions')
+                        .update({
+                            ai_generated_explanation: explanation.explanation,
+                            ai_explanation_reviewed: false
+                        })
+                        .eq('id', questionId)
+
+                    if (error) {
+                        console.error('Error updating question:', error)
+                        failCount++
+                    } else {
+                        successCount++
+                    }
+                } catch (error) {
+                    console.error('Error saving explanation:', error)
+                    failCount++
+                }
+            }
+
+            // 重新載入題目列表
+            await fetchQuestions()
+
+            if (successCount > 0) {
+                alert(`批量生成完成！\n\n成功：${successCount} 題\n失敗：${failCount} 題`)
+            } else if (failCount > 0) {
+                alert(`批量生成失敗\n\n所有 ${failCount} 題都無法生成\n\n可能原因：\n1. API 配額已用盡（免費版每天 50 次）\n2. 網路連線問題\n3. API 金鑰問題\n\n建議稍後再試或檢查 API 設定。`)
+            }
+        } catch (error) {
+            console.error('Error generating batch explanations:', error)
+            alert('批量生成失敗，請檢查控制台錯誤訊息')
+        } finally {
+            setGeneratingExplanations(false)
+        }
+    }
+
+    const handleDeleteQuestion = async (questionId: string, questionNumber: number) => {
+        const confirmed = confirm(`確定要刪除題目 #${questionNumber} 嗎？\n\n此操作無法復原。`)
+        if (!confirmed) return
+
+        try {
+            const { error } = await supabase
+                .from('questions')
+                .delete()
+                .eq('id', questionId)
+
+            if (error) {
+                console.error('Error deleting question:', error)
+                alert('刪除失敗：' + error.message)
+                return
+            }
+
+            // 重新載入題目列表
+            await fetchQuestions()
+            alert('刪除成功！')
+        } catch (error) {
+            console.error('Error deleting question:', error)
+            alert('刪除失敗，請檢查控制台錯誤訊息')
+        }
+    }
+
+    const handleEditQuestion = (question: Question) => {
+        setEditingQuestion(question)
+        setEditFormData({
+            question_text: question.question_text,
+            option_a: question.option_a || '',
+            option_b: question.option_b || '',
+            option_c: question.option_c || '',
+            option_d: question.option_d || '',
+            correct_answer: question.correct_answer,
+            explanation: question.explanation || '',
+            ai_generated_explanation: question.ai_generated_explanation || '',
+            difficulty_level: question.difficulty_level
+        })
+    }
+
+    const handleCloseEditModal = () => {
+        setEditingQuestion(null)
+        setEditFormData({
+            question_text: '',
+            option_a: '',
+            option_b: '',
+            option_c: '',
+            option_d: '',
+            correct_answer: 'A',
+            explanation: '',
+            ai_generated_explanation: '',
+            difficulty_level: 3
+        })
+    }
+
+    const handleSaveEdit = async () => {
+        if (!editingQuestion) return
+
+        try {
+            const { error } = await supabase
+                .from('questions')
+                .update({
+                    question_text: editFormData.question_text,
+                    option_a: editFormData.option_a,
+                    option_b: editFormData.option_b,
+                    option_c: editFormData.option_c,
+                    option_d: editFormData.option_d,
+                    correct_answer: editFormData.correct_answer,
+                    explanation: editFormData.explanation,
+                    ai_generated_explanation: editFormData.ai_generated_explanation,
+                    difficulty_level: editFormData.difficulty_level,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', editingQuestion.id)
+
+            if (error) {
+                console.error('Error updating question:', error)
+                alert('更新失敗：' + error.message)
+                return
+            }
+
+            // 重新載入題目列表
+            await fetchQuestions()
+            handleCloseEditModal()
+            alert('更新成功！')
+        } catch (error) {
+            console.error('Error updating question:', error)
+            alert('更新失敗，請檢查控制台錯誤訊息')
+        }
+    }
+
+    const handleGenerateSingleExplanation = async (question: Question) => {
+        const isRegenerate = !!question.ai_generated_explanation
+        const message = isRegenerate
+            ? `確定要重新生成題目 #${question.question_number} 的 AI 解析嗎？\n\n這將覆蓋現有的解析內容並重置審核狀態。`
+            : `確定要為題目 #${question.question_number} 生成 AI 解析嗎？`
+
+        const confirmed = confirm(message)
+        if (!confirmed) return
+
+        setGeneratingExplanations(true)
+        try {
+            const results = await generateBatchExplanations([{
+                id: question.id,
+                question_text: question.question_text,
+                option_a: question.option_a,
+                option_b: question.option_b,
+                option_c: question.option_c,
+                option_d: question.option_d,
+                correct_answer: question.correct_answer
+            }])
+
+            const explanation = results[question.id]
+            if (explanation) {
+                const { error } = await supabase
+                    .from('questions')
+                    .update({
+                        ai_generated_explanation: explanation.explanation,
+                        ai_explanation_reviewed: false,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', question.id)
+
+                if (error) {
+                    console.error('Error updating question:', error)
+                    alert('更新失敗：' + error.message)
+                } else {
+                    await fetchQuestions()
+                    alert(isRegenerate ? 'AI 解析重新生成成功！' : 'AI 解析生成成功！')
+                }
+            } else {
+                alert('AI 解析生成失敗，請稍後再試')
+            }
+        } catch (error) {
+            console.error('Error generating explanation:', error)
+            alert('生成失敗，請檢查控制台錯誤訊息')
+        } finally {
+            setGeneratingExplanations(false)
         }
     }
 
@@ -817,14 +1068,162 @@ export default function AdminPage() {
         </div>
     )
 
+    // 用戶管理函數
+    const handleEditUser = (user: User) => {
+        setEditingUser(user)
+        setUserEditFormData({
+            full_name: user.full_name || '',
+            email: user.email || '',
+            role: user.role
+        })
+    }
+
+    const handleCloseUserEditModal = () => {
+        setEditingUser(null)
+        setUserEditFormData({
+            full_name: '',
+            email: '',
+            role: 'user'
+        })
+    }
+
+    const handleSaveUserEdit = async () => {
+        if (!editingUser) return
+
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    full_name: userEditFormData.full_name,
+                    role: userEditFormData.role,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', editingUser.id)
+
+            if (error) {
+                console.error('Error updating user:', error)
+                alert('更新失敗：' + error.message)
+                return
+            }
+
+            // 重新載入用戶列表
+            await fetchUsers()
+            handleCloseUserEditModal()
+            alert('用戶資訊更新成功！')
+        } catch (error) {
+            console.error('Error updating user:', error)
+            alert('更新失敗，請檢查控制台錯誤訊息')
+        }
+    }
+
+    const handleDeleteUser = async (userId: string, userEmail: string) => {
+        const confirmed = confirm(`確定要刪除用戶 ${userEmail} 嗎？\n\n此操作無法復原，將同時刪除該用戶的所有答題記錄。`)
+        if (!confirmed) return
+
+        try {
+            // 注意：由於 Supabase Auth 的限制，我們只能停用用戶而不能刪除
+            // 正確的做法是使用 Supabase Admin API 或將角色設為 disabled
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    role: 'disabled',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', userId)
+
+            if (error) {
+                console.error('Error disabling user:', error)
+                alert('停用失敗：' + error.message)
+                return
+            }
+
+            // 重新載入用戶列表
+            await fetchUsers()
+            alert('用戶已停用！')
+        } catch (error) {
+            console.error('Error disabling user:', error)
+            alert('停用失敗，請檢查控制台錯誤訊息')
+        }
+    }
+
+    const handleToggleUserRole = async (userId: string, currentRole: string, userEmail: string) => {
+        const newRole = currentRole === 'admin' ? 'user' : 'admin'
+        const action = newRole === 'admin' ? '升級為管理員' : '降級為普通用戶'
+
+        const confirmed = confirm(`確定要將 ${userEmail} ${action}嗎？`)
+        if (!confirmed) return
+
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    role: newRole,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', userId)
+
+            if (error) {
+                console.error('Error updating user role:', error)
+                alert('更新失敗：' + error.message)
+                return
+            }
+
+            await fetchUsers()
+            alert(`用戶角色已更新為${newRole === 'admin' ? '管理員' : '普通用戶'}！`)
+        } catch (error) {
+            console.error('Error updating user role:', error)
+            alert('更新失敗，請檢查控制台錯誤訊息')
+        }
+    }
+
+    const handleReviewExplanation = async (questionId: string, questionNumber: number) => {
+        const confirmed = confirm(`確定要標記題目 #${questionNumber} 的 AI 解析為已審核嗎？`)
+        if (!confirmed) return
+
+        try {
+            const { error } = await supabase
+                .from('questions')
+                .update({
+                    ai_explanation_reviewed: true,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', questionId)
+
+            if (error) {
+                console.error('Error updating question:', error)
+                alert('更新失敗：' + error.message)
+                return
+            }
+
+            await fetchQuestions()
+            alert('標記為已審核成功！')
+        } catch (error) {
+            console.error('Error updating question:', error)
+            alert('更新失敗，請檢查控制台錯誤訊息')
+        }
+    }
+
     const renderQuestionsTab = () => (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">題目管理</h3>
                 <div className="flex items-center space-x-4">
-                    <button className="btn-outline flex items-center">
-                        <Brain className="h-4 w-4 mr-2" />
-                        批量生成 AI 解答
+                    <button
+                        onClick={handleBatchGenerateExplanations}
+                        disabled={generatingExplanations}
+                        className="btn-outline flex items-center"
+                    >
+                        {generatingExplanations ? (
+                            <>
+                                <LoadingSpinner size="sm" className="mr-2" />
+                                生成中...
+                            </>
+                        ) : (
+                            <>
+                                <Brain className="h-4 w-4 mr-2" />
+                                批量生成 AI 解答
+                            </>
+                        )}
                     </button>
                     <button className="btn-primary flex items-center">
                         <Plus className="h-4 w-4 mr-2" />
@@ -886,25 +1285,57 @@ export default function AdminPage() {
                                             </td>
                                             <td className="text-center py-3 px-4">
                                                 {question.ai_generated_explanation ? (
-                                                    <div className="flex items-center justify-center">
-                                                        <CheckCircle className={`h-4 w-4 ${question.ai_explanation_reviewed ? 'text-green-500' : 'text-yellow-500'
-                                                            }`} />
-                                                        <span className="ml-1 text-sm">
-                                                            {question.ai_explanation_reviewed ? '已審核' : '待審核'}
-                                                        </span>
+                                                    <div className="flex flex-col items-center justify-center gap-1">
+                                                        <div className="flex items-center">
+                                                            <CheckCircle className={`h-4 w-4 ${question.ai_explanation_reviewed ? 'text-green-500' : 'text-yellow-500'
+                                                                }`} />
+                                                            <span className="ml-1 text-sm">
+                                                                {question.ai_explanation_reviewed ? '已審核' : '待審核'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            {!question.ai_explanation_reviewed && (
+                                                                <button
+                                                                    onClick={() => handleReviewExplanation(question.id, question.question_number)}
+                                                                    className="text-xs text-green-600 hover:text-green-800 underline"
+                                                                >
+                                                                    標記為已審核
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleGenerateSingleExplanation(question)}
+                                                                disabled={generatingExplanations}
+                                                                className="text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                title="重新生成 AI 解析"
+                                                            >
+                                                                重新生成
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ) : (
-                                                    <button className="text-blue-600 hover:text-blue-800 text-sm">
+                                                    <button
+                                                        onClick={() => handleGenerateSingleExplanation(question)}
+                                                        disabled={generatingExplanations}
+                                                        className="text-blue-600 hover:text-blue-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
                                                         生成解答
                                                     </button>
                                                 )}
                                             </td>
                                             <td className="text-center py-3 px-4">
                                                 <div className="flex items-center justify-center space-x-2">
-                                                    <button className="text-blue-600 hover:text-blue-800">
+                                                    <button
+                                                        onClick={() => handleEditQuestion(question)}
+                                                        className="text-blue-600 hover:text-blue-800"
+                                                        title="編輯題目"
+                                                    >
                                                         <Edit className="h-4 w-4" />
                                                     </button>
-                                                    <button className="text-red-600 hover:text-red-800">
+                                                    <button
+                                                        onClick={() => handleDeleteQuestion(question.id, question.question_number)}
+                                                        className="text-red-600 hover:text-red-800"
+                                                        title="刪除題目"
+                                                    >
                                                         <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 </div>
@@ -917,6 +1348,171 @@ export default function AdminPage() {
                     </div>
                 </div>
             </div>
+
+            {/* 編輯題目模態框 */}
+            {editingQuestion && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+                            <h3 className="text-xl font-bold">編輯題目 #{editingQuestion.question_number}</h3>
+                            <button
+                                onClick={handleCloseEditModal}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                <XCircle className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {/* 題目內容 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    題目內容 *
+                                </label>
+                                <textarea
+                                    value={editFormData.question_text}
+                                    onChange={(e) => setEditFormData({ ...editFormData, question_text: e.target.value })}
+                                    rows={4}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    placeholder="請輸入題目內容..."
+                                />
+                            </div>
+
+                            {/* 選項 */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        選項 A
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.option_a}
+                                        onChange={(e) => setEditFormData({ ...editFormData, option_a: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        placeholder="選項 A 內容"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        選項 B
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.option_b}
+                                        onChange={(e) => setEditFormData({ ...editFormData, option_b: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        placeholder="選項 B 內容"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        選項 C
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.option_c}
+                                        onChange={(e) => setEditFormData({ ...editFormData, option_c: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        placeholder="選項 C 內容"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        選項 D
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.option_d}
+                                        onChange={(e) => setEditFormData({ ...editFormData, option_d: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        placeholder="選項 D 內容"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 正確答案和難度 */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        正確答案 *
+                                    </label>
+                                    <select
+                                        value={editFormData.correct_answer}
+                                        onChange={(e) => setEditFormData({ ...editFormData, correct_answer: e.target.value as 'A' | 'B' | 'C' | 'D' })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    >
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                        <option value="D">D</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        難度等級 (1-5)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="5"
+                                        value={editFormData.difficulty_level}
+                                        onChange={(e) => setEditFormData({ ...editFormData, difficulty_level: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 人工解析 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    人工解析
+                                </label>
+                                <textarea
+                                    value={editFormData.explanation}
+                                    onChange={(e) => setEditFormData({ ...editFormData, explanation: e.target.value })}
+                                    rows={4}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    placeholder="請輸入人工編寫的解析..."
+                                />
+                            </div>
+
+                            {/* AI 解析 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    AI 生成解析
+                                </label>
+                                <textarea
+                                    value={editFormData.ai_generated_explanation}
+                                    onChange={(e) => setEditFormData({ ...editFormData, ai_generated_explanation: e.target.value })}
+                                    rows={4}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50"
+                                    placeholder="AI 生成的解析內容..."
+                                />
+                                <p className="text-sm text-gray-500 mt-1">
+                                    可以編輯 AI 生成的解析內容，修正錯誤或補充資訊
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* 底部按鈕 */}
+                        <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex items-center justify-end space-x-4">
+                            <button
+                                onClick={handleCloseEditModal}
+                                className="btn-outline"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                className="btn-primary flex items-center"
+                            >
+                                <Save className="h-4 w-4 mr-2" />
+                                儲存變更
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 
@@ -1007,12 +1603,16 @@ export default function AdminPage() {
                                                 </div>
                                             </td>
                                             <td className="text-center py-3 px-4">
-                                                <span className={`px-2 py-1 rounded text-sm ${user.role === 'admin'
+                                                <button
+                                                    onClick={() => handleToggleUserRole(user.id, user.role, user.email || '')}
+                                                    className={`px-2 py-1 rounded text-sm hover:opacity-80 transition-opacity ${user.role === 'admin'
                                                         ? 'bg-purple-100 text-purple-800'
                                                         : 'bg-gray-100 text-gray-800'
-                                                    }`}>
+                                                        }`}
+                                                    title={user.role === 'admin' ? '點擊降級為普通用戶' : '點擊升級為管理員'}
+                                                >
                                                     {user.role === 'admin' ? '管理員' : '用戶'}
-                                                </span>
+                                                </button>
                                             </td>
                                             <td className="text-center py-3 px-4">
                                                 {new Date(user.created_at).toLocaleDateString('zh-TW')}
@@ -1021,10 +1621,18 @@ export default function AdminPage() {
                                             <td className="text-center py-3 px-4">-</td>
                                             <td className="text-center py-3 px-4">
                                                 <div className="flex items-center justify-center space-x-2">
-                                                    <button className="text-blue-600 hover:text-blue-800">
+                                                    <button
+                                                        onClick={() => handleEditUser(user)}
+                                                        className="text-blue-600 hover:text-blue-800"
+                                                        title="編輯用戶"
+                                                    >
                                                         <Edit className="h-4 w-4" />
                                                     </button>
-                                                    <button className="text-red-600 hover:text-red-800">
+                                                    <button
+                                                        onClick={() => handleDeleteUser(user.id, user.email || '')}
+                                                        className="text-red-600 hover:text-red-800"
+                                                        title="停用用戶"
+                                                    >
                                                         <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 </div>
@@ -1037,6 +1645,85 @@ export default function AdminPage() {
                     </div>
                 </div>
             </div>
+
+            {/* 編輯用戶模態框 */}
+            {editingUser && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full">
+                        <div className="border-b px-6 py-4 flex items-center justify-between">
+                            <h3 className="text-xl font-bold">編輯用戶資訊</h3>
+                            <button
+                                onClick={handleCloseUserEditModal}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                <XCircle className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {/* 姓名 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    姓名
+                                </label>
+                                <input
+                                    type="text"
+                                    value={userEditFormData.full_name}
+                                    onChange={(e) => setUserEditFormData({ ...userEditFormData, full_name: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    placeholder="請輸入姓名"
+                                />
+                            </div>
+
+                            {/* Email (唯讀) */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    value={userEditFormData.email}
+                                    disabled
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Email 無法修改</p>
+                            </div>
+
+                            {/* 角色 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    角色
+                                </label>
+                                <select
+                                    value={userEditFormData.role}
+                                    onChange={(e) => setUserEditFormData({ ...userEditFormData, role: e.target.value as 'user' | 'admin' })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                >
+                                    <option value="user">普通用戶</option>
+                                    <option value="admin">管理員</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* 底部按鈕 */}
+                        <div className="bg-gray-50 border-t px-6 py-4 flex items-center justify-end space-x-4">
+                            <button
+                                onClick={handleCloseUserEditModal}
+                                className="btn-outline"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={handleSaveUserEdit}
+                                className="btn-primary flex items-center"
+                            >
+                                <Save className="h-4 w-4 mr-2" />
+                                儲存變更
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 

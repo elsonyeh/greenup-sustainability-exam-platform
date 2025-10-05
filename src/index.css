@@ -95,7 +95,14 @@
     }
 
     .card {
-        @apply rounded-lg border border-gray-200 bg-white text-gray-900 shadow-sm;
+        @apply rounded-lg border border-gray-200 bg-white text-gray-900 shadow-sm overflow-hidden;
+    }
+
+    /* 防止所有卡片內容溢出 */
+    .card * {
+        @apply break-words;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     .card-header {
@@ -264,6 +271,21 @@
 /* 全域樣式調整 */
 .container {
     @apply mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* 防止所有 border rounded-lg p-4 bg-white 容器溢出 */
+.border.rounded-lg.p-4.bg-white,
+.border.rounded-lg.p-4,
+.border.rounded.p-4 {
+    @apply overflow-hidden;
+}
+
+.border.rounded-lg.p-4.bg-white *,
+.border.rounded-lg.p-4 *,
+.border.rounded.p-4 * {
+    @apply break-words;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .section-padding {
