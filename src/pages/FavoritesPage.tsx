@@ -225,7 +225,9 @@ export default function FavoritesPage() {
                                                 </p>
                                                 <div className="flex items-center gap-3 text-sm text-gray-600">
                                                     <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                                                        {fq.question.question_categories?.name || '未分類'}
+                                                        {(Array.isArray(fq.question.question_categories)
+                                                            ? fq.question.question_categories[0]?.name
+                                                            : fq.question.question_categories?.name) ?? '未分類'}
                                                     </span>
                                                     <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">
                                                         難度 {fq.question.difficulty_level}
@@ -253,8 +255,8 @@ export default function FavoritesPage() {
                                                     <div
                                                         key={option}
                                                         className={`p-3 rounded-lg border-2 ${isCorrect
-                                                                ? 'border-green-500 bg-green-50'
-                                                                : 'border-gray-200 bg-gray-50'
+                                                            ? 'border-green-500 bg-green-50'
+                                                            : 'border-gray-200 bg-gray-50'
                                                             }`}
                                                     >
                                                         <span className="font-semibold">{option}.</span> {optionText}
