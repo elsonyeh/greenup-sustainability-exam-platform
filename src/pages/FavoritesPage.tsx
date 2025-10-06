@@ -66,7 +66,12 @@ export default function FavoritesPage() {
 
             if (fetchError) throw fetchError
 
-            setFavoriteQuestions(data || [])
+            // Supabase 可能以陣列形式回傳關聯的 question，轉為單一物件
+            const normalized = (data || []).map((row: any) => ({
+                ...row,
+                question: Array.isArray(row.question) ? row.question[0] : row.question
+            }))
+            setFavoriteQuestions(normalized)
         } catch (err) {
             console.error('Error fetching favorite questions:', err)
             setError('載入收藏題目失敗')
@@ -163,11 +168,11 @@ export default function FavoritesPage() {
                                 <p className="text-3xl font-bold text-purple-600">
                                     {favoriteQuestions.length > 0
                                         ? (
-                                              favoriteQuestions.reduce(
-                                                  (acc, fq) => acc + fq.question.difficulty_level,
-                                                  0
-                                              ) / favoriteQuestions.length
-                                          ).toFixed(1)
+                                            favoriteQuestions.reduce(
+                                                (acc, fq) => acc + fq.question.difficulty_level,
+                                                0
+                                            ) / favoriteQuestions.length
+                                        ).toFixed(1)
                                         : '0'}
                                 </p>
                             </div>
@@ -247,11 +252,10 @@ export default function FavoritesPage() {
                                                 return (
                                                     <div
                                                         key={option}
-                                                        className={`p-3 rounded-lg border-2 ${
-                                                            isCorrect
+                                                        className={`p-3 rounded-lg border-2 ${isCorrect
                                                                 ? 'border-green-500 bg-green-50'
                                                                 : 'border-gray-200 bg-gray-50'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <span className="font-semibold">{option}.</span> {optionText}
                                                         {isCorrect && (

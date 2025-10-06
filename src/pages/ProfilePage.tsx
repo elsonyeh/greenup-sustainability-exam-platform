@@ -142,10 +142,12 @@ export default function ProfilePage() {
             })
 
             // 載入偏好設定
+            // 這些欄位可能不在型別宣告內，使用斷言讀取
+            const p: any = profile
             setPreferences({
-                emailNotifications: profile.email_notifications ?? true,
-                practiceReminders: profile.practice_reminders ?? true,
-                privacyMode: profile.privacy_mode ?? false
+                emailNotifications: p.email_notifications ?? true,
+                practiceReminders: p.practice_reminders ?? true,
+                privacyMode: p.privacy_mode ?? false
             })
         }
     }, [profile])
@@ -172,8 +174,8 @@ export default function ProfilePage() {
                 .from('profiles')
                 .update({
                     [preferenceKey === 'emailNotifications' ? 'email_notifications' :
-                     preferenceKey === 'practiceReminders' ? 'practice_reminders' :
-                     'privacy_mode']: newValue,
+                        preferenceKey === 'practiceReminders' ? 'practice_reminders' :
+                            'privacy_mode']: newValue,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', user?.id)
@@ -579,16 +581,14 @@ export default function ProfilePage() {
                                     onChange={() => handlePreferenceChange('emailNotifications')}
                                     aria-labelledby="email-notifications-label"
                                 />
-                                <div className={`w-11 h-6 rounded-full transition-all duration-300 ease-in-out focus-within:ring-4 focus-within:ring-green-500/20 ${
-                                    preferences.emailNotifications
+                                <div className={`w-11 h-6 rounded-full transition-all duration-300 ease-in-out focus-within:ring-4 focus-within:ring-green-500/20 ${preferences.emailNotifications
                                         ? 'bg-green-500'
                                         : 'bg-gray-200'
-                                }`}>
-                                    <div className={`h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out ${
-                                        preferences.emailNotifications
+                                    }`}>
+                                    <div className={`h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out ${preferences.emailNotifications
                                             ? 'translate-x-5'
                                             : 'translate-x-0.5'
-                                    } mt-0.5`}>
+                                        } mt-0.5`}>
                                     </div>
                                 </div>
                             </label>
@@ -609,16 +609,14 @@ export default function ProfilePage() {
                                     onChange={() => handlePreferenceChange('practiceReminders')}
                                     aria-labelledby="practice-reminders-label"
                                 />
-                                <div className={`w-11 h-6 rounded-full transition-all duration-300 ease-in-out focus-within:ring-4 focus-within:ring-green-500/20 ${
-                                    preferences.practiceReminders
+                                <div className={`w-11 h-6 rounded-full transition-all duration-300 ease-in-out focus-within:ring-4 focus-within:ring-green-500/20 ${preferences.practiceReminders
                                         ? 'bg-green-500'
                                         : 'bg-gray-200'
-                                }`}>
-                                    <div className={`h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out ${
-                                        preferences.practiceReminders
+                                    }`}>
+                                    <div className={`h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out ${preferences.practiceReminders
                                             ? 'translate-x-5'
                                             : 'translate-x-0.5'
-                                    } mt-0.5`}>
+                                        } mt-0.5`}>
                                     </div>
                                 </div>
                             </label>
@@ -639,16 +637,14 @@ export default function ProfilePage() {
                                     onChange={() => handlePreferenceChange('privacyMode')}
                                     aria-labelledby="privacy-mode-label"
                                 />
-                                <div className={`w-11 h-6 rounded-full transition-all duration-300 ease-in-out focus-within:ring-4 focus-within:ring-green-500/20 ${
-                                    preferences.privacyMode
+                                <div className={`w-11 h-6 rounded-full transition-all duration-300 ease-in-out focus-within:ring-4 focus-within:ring-green-500/20 ${preferences.privacyMode
                                         ? 'bg-green-500'
                                         : 'bg-gray-200'
-                                }`}>
-                                    <div className={`h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out ${
-                                        preferences.privacyMode
+                                    }`}>
+                                    <div className={`h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out ${preferences.privacyMode
                                             ? 'translate-x-5'
                                             : 'translate-x-0.5'
-                                    } mt-0.5`}>
+                                        } mt-0.5`}>
                                     </div>
                                 </div>
                             </label>

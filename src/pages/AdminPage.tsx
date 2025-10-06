@@ -136,7 +136,7 @@ interface AIError {
 }
 
 export default function AdminPage() {
-    const { isAdmin } = useAuth()
+    const { isAdmin, user } = useAuth()
     const [activeTab, setActiveTab] = useState('upload')
     const [uploading, setUploading] = useState(false)
     const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -181,7 +181,7 @@ export default function AdminPage() {
         ai_generated_explanation: '',
         difficulty_level: 3
     })
-    const [editingUser, setEditingUser] = useState<User | null>(null)
+    const [editingUser, setEditingUser] = useState<UserProfile | null>(null)
     const [userEditFormData, setUserEditFormData] = useState({
         full_name: '',
         email: '',
@@ -1025,8 +1025,8 @@ export default function AdminPage() {
                                     <div key={record.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                         <div className="flex items-center">
                                             <div className={`w-3 h-3 rounded-full mr-3 ${record.processing_status === 'completed' ? 'bg-green-500' :
-                                                    record.processing_status === 'processing' ? 'bg-yellow-500' :
-                                                        'bg-red-500'
+                                                record.processing_status === 'processing' ? 'bg-yellow-500' :
+                                                    'bg-red-500'
                                                 }`} />
                                             <div>
                                                 <p className="font-medium">{record.title}</p>
@@ -1034,7 +1034,7 @@ export default function AdminPage() {
                                                     {record.processing_status === 'completed' ? `已完成，解析 ${questionCount} 題` :
                                                         record.processing_status === 'processing' ? '處理中...' :
                                                             record.processing_status === 'pending' ? '待處理' :
-                                                            '處理失敗'}
+                                                                '處理失敗'}
                                                 </p>
                                             </div>
                                         </div>
@@ -1069,7 +1069,7 @@ export default function AdminPage() {
     )
 
     // 用戶管理函數
-    const handleEditUser = (user: User) => {
+    const handleEditUser = (user: UserProfile) => {
         setEditingUser(user)
         setUserEditFormData({
             full_name: user.full_name || '',
@@ -1823,8 +1823,8 @@ export default function AdminPage() {
                                     <AreaChart data={dailyActivity}>
                                         <defs>
                                             <linearGradient id="questionsGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" />
@@ -1951,11 +1951,10 @@ export default function AdminPage() {
                                             <td className="text-center py-3 px-4">{category.totalAnswered}</td>
                                             <td className="text-center py-3 px-4">
                                                 <div className="flex items-center justify-center space-x-2">
-                                                    <span className={`font-medium ${
-                                                        category.averageAccuracy >= 80 ? 'text-green-600' :
-                                                        category.averageAccuracy >= 60 ? 'text-yellow-600' :
-                                                        'text-red-600'
-                                                    }`}>
+                                                    <span className={`font-medium ${category.averageAccuracy >= 80 ? 'text-green-600' :
+                                                            category.averageAccuracy >= 60 ? 'text-yellow-600' :
+                                                                'text-red-600'
+                                                        }`}>
                                                         {category.averageAccuracy}%
                                                     </span>
                                                     {category.averageAccuracy >= 80 ? (
@@ -1966,13 +1965,12 @@ export default function AdminPage() {
                                                 </div>
                                             </td>
                                             <td className="text-center py-3 px-4">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                    category.averageAccuracy >= 80 ? 'bg-green-100 text-green-800' :
-                                                    category.averageAccuracy >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${category.averageAccuracy >= 80 ? 'bg-green-100 text-green-800' :
+                                                        category.averageAccuracy >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                                                            'bg-red-100 text-red-800'
+                                                    }`}>
                                                     {category.averageAccuracy >= 80 ? '優秀' :
-                                                     category.averageAccuracy >= 60 ? '良好' : '需改進'}
+                                                        category.averageAccuracy >= 60 ? '良好' : '需改進'}
                                                 </span>
                                             </td>
                                         </tr>
@@ -2018,9 +2016,8 @@ export default function AdminPage() {
                 <button
                     onClick={saveSettings}
                     disabled={!settingsChanged || saving}
-                    className={`btn-primary flex items-center ${
-                        !settingsChanged ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    className={`btn-primary flex items-center ${!settingsChanged ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                 >
                     {saving ? (
                         <>
@@ -2123,14 +2120,12 @@ export default function AdminPage() {
                             </div>
                             <button
                                 onClick={() => handleSettingChange('allowRegistration', !systemSettings.allowRegistration)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                    systemSettings.allowRegistration ? 'bg-primary' : 'bg-gray-200'
-                                }`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${systemSettings.allowRegistration ? 'bg-primary' : 'bg-gray-200'
+                                    }`}
                             >
                                 <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                        systemSettings.allowRegistration ? 'translate-x-6' : 'translate-x-1'
-                                    }`}
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${systemSettings.allowRegistration ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
                                 />
                             </button>
                         </div>
@@ -2144,14 +2139,12 @@ export default function AdminPage() {
                             </div>
                             <button
                                 onClick={() => handleSettingChange('aiExplanationEnabled', !systemSettings.aiExplanationEnabled)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                    systemSettings.aiExplanationEnabled ? 'bg-primary' : 'bg-gray-200'
-                                }`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${systemSettings.aiExplanationEnabled ? 'bg-primary' : 'bg-gray-200'
+                                    }`}
                             >
                                 <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                        systemSettings.aiExplanationEnabled ? 'translate-x-6' : 'translate-x-1'
-                                    }`}
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${systemSettings.aiExplanationEnabled ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
                                 />
                             </button>
                         </div>
@@ -2165,14 +2158,12 @@ export default function AdminPage() {
                             </div>
                             <button
                                 onClick={() => handleSettingChange('enableEmailNotifications', !systemSettings.enableEmailNotifications)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                    systemSettings.enableEmailNotifications ? 'bg-primary' : 'bg-gray-200'
-                                }`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${systemSettings.enableEmailNotifications ? 'bg-primary' : 'bg-gray-200'
+                                    }`}
                             >
                                 <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                        systemSettings.enableEmailNotifications ? 'translate-x-6' : 'translate-x-1'
-                                    }`}
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${systemSettings.enableEmailNotifications ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
                                 />
                             </button>
                         </div>
@@ -2186,14 +2177,12 @@ export default function AdminPage() {
                             </div>
                             <button
                                 onClick={() => handleSettingChange('autoBackupEnabled', !systemSettings.autoBackupEnabled)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                    systemSettings.autoBackupEnabled ? 'bg-primary' : 'bg-gray-200'
-                                }`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${systemSettings.autoBackupEnabled ? 'bg-primary' : 'bg-gray-200'
+                                    }`}
                             >
                                 <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                        systemSettings.autoBackupEnabled ? 'translate-x-6' : 'translate-x-1'
-                                    }`}
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${systemSettings.autoBackupEnabled ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
                                 />
                             </button>
                         </div>
@@ -2224,14 +2213,12 @@ export default function AdminPage() {
                             </div>
                             <button
                                 onClick={() => handleSettingChange('maintenanceMode', !systemSettings.maintenanceMode)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                    systemSettings.maintenanceMode ? 'bg-red-500' : 'bg-gray-200'
-                                }`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${systemSettings.maintenanceMode ? 'bg-red-500' : 'bg-gray-200'
+                                    }`}
                             >
                                 <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                        systemSettings.maintenanceMode ? 'translate-x-6' : 'translate-x-1'
-                                    }`}
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${systemSettings.maintenanceMode ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
                                 />
                             </button>
                         </div>
@@ -2249,118 +2236,102 @@ export default function AdminPage() {
                     <div className="card-content space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             {/* 數據庫狀態 */}
-                            <div className={`p-4 rounded-lg ${
-                                systemStatus.database === 'healthy' ? 'bg-green-50' :
-                                systemStatus.database === 'warning' ? 'bg-yellow-50' :
-                                'bg-red-50'
-                            }`}>
-                                <div className="flex items-center">
-                                    <div className={`w-3 h-3 rounded-full mr-2 ${
-                                        systemStatus.database === 'healthy' ? 'bg-green-500' :
-                                        systemStatus.database === 'warning' ? 'bg-yellow-500' :
-                                        'bg-red-500'
-                                    }`}></div>
-                                    <span className={`text-sm font-medium ${
-                                        systemStatus.database === 'healthy' ? 'text-green-700' :
-                                        systemStatus.database === 'warning' ? 'text-yellow-700' :
-                                        'text-red-700'
-                                    }`}>數據庫</span>
-                                </div>
-                                <p className={`text-sm mt-1 ${
-                                    systemStatus.database === 'healthy' ? 'text-green-600' :
-                                    systemStatus.database === 'warning' ? 'text-yellow-600' :
-                                    'text-red-600'
+                            <div className={`p-4 rounded-lg ${systemStatus.database === 'healthy' ? 'bg-green-50' :
+                                    systemStatus.database === 'warning' ? 'bg-yellow-50' :
+                                        'bg-red-50'
                                 }`}>
+                                <div className="flex items-center">
+                                    <div className={`w-3 h-3 rounded-full mr-2 ${systemStatus.database === 'healthy' ? 'bg-green-500' :
+                                            systemStatus.database === 'warning' ? 'bg-yellow-500' :
+                                                'bg-red-500'
+                                        }`}></div>
+                                    <span className={`text-sm font-medium ${systemStatus.database === 'healthy' ? 'text-green-700' :
+                                            systemStatus.database === 'warning' ? 'text-yellow-700' :
+                                                'text-red-700'
+                                        }`}>數據庫</span>
+                                </div>
+                                <p className={`text-sm mt-1 ${systemStatus.database === 'healthy' ? 'text-green-600' :
+                                        systemStatus.database === 'warning' ? 'text-yellow-600' :
+                                            'text-red-600'
+                                    }`}>
                                     {systemStatus.database === 'healthy' ? '正常運行' :
-                                     systemStatus.database === 'warning' ? '緩慢響應' :
-                                     '連接失敗'}
+                                        systemStatus.database === 'warning' ? '緩慢響應' :
+                                            '連接失敗'}
                                 </p>
                             </div>
 
                             {/* AI 服務狀態 */}
-                            <div className={`p-4 rounded-lg ${
-                                systemStatus.aiService === 'healthy' ? 'bg-green-50' :
-                                systemStatus.aiService === 'warning' ? 'bg-yellow-50' :
-                                'bg-red-50'
-                            }`}>
-                                <div className="flex items-center">
-                                    <div className={`w-3 h-3 rounded-full mr-2 ${
-                                        systemStatus.aiService === 'healthy' ? 'bg-green-500' :
-                                        systemStatus.aiService === 'warning' ? 'bg-yellow-500' :
-                                        'bg-red-500'
-                                    }`}></div>
-                                    <span className={`text-sm font-medium ${
-                                        systemStatus.aiService === 'healthy' ? 'text-green-700' :
-                                        systemStatus.aiService === 'warning' ? 'text-yellow-700' :
-                                        'text-red-700'
-                                    }`}>AI 服務</span>
-                                </div>
-                                <p className={`text-sm mt-1 ${
-                                    systemStatus.aiService === 'healthy' ? 'text-green-600' :
-                                    systemStatus.aiService === 'warning' ? 'text-yellow-600' :
-                                    'text-red-600'
+                            <div className={`p-4 rounded-lg ${systemStatus.aiService === 'healthy' ? 'bg-green-50' :
+                                    systemStatus.aiService === 'warning' ? 'bg-yellow-50' :
+                                        'bg-red-50'
                                 }`}>
+                                <div className="flex items-center">
+                                    <div className={`w-3 h-3 rounded-full mr-2 ${systemStatus.aiService === 'healthy' ? 'bg-green-500' :
+                                            systemStatus.aiService === 'warning' ? 'bg-yellow-500' :
+                                                'bg-red-500'
+                                        }`}></div>
+                                    <span className={`text-sm font-medium ${systemStatus.aiService === 'healthy' ? 'text-green-700' :
+                                            systemStatus.aiService === 'warning' ? 'text-yellow-700' :
+                                                'text-red-700'
+                                        }`}>AI 服務</span>
+                                </div>
+                                <p className={`text-sm mt-1 ${systemStatus.aiService === 'healthy' ? 'text-green-600' :
+                                        systemStatus.aiService === 'warning' ? 'text-yellow-600' :
+                                            'text-red-600'
+                                    }`}>
                                     {systemStatus.aiService === 'healthy' ? '正常運行' :
-                                     systemStatus.aiService === 'warning' ? '限速中' :
-                                     '服務不可用'}
+                                        systemStatus.aiService === 'warning' ? '限速中' :
+                                            '服務不可用'}
                                 </p>
                             </div>
 
                             {/* 存儲服務狀態 */}
-                            <div className={`p-4 rounded-lg ${
-                                systemStatus.storage === 'healthy' ? 'bg-green-50' :
-                                systemStatus.storage === 'warning' ? 'bg-yellow-50' :
-                                'bg-red-50'
-                            }`}>
-                                <div className="flex items-center">
-                                    <div className={`w-3 h-3 rounded-full mr-2 ${
-                                        systemStatus.storage === 'healthy' ? 'bg-green-500' :
-                                        systemStatus.storage === 'warning' ? 'bg-yellow-500' :
-                                        'bg-red-500'
-                                    }`}></div>
-                                    <span className={`text-sm font-medium ${
-                                        systemStatus.storage === 'healthy' ? 'text-green-700' :
-                                        systemStatus.storage === 'warning' ? 'text-yellow-700' :
-                                        'text-red-700'
-                                    }`}>文件存儲</span>
-                                </div>
-                                <p className={`text-sm mt-1 ${
-                                    systemStatus.storage === 'healthy' ? 'text-green-600' :
-                                    systemStatus.storage === 'warning' ? 'text-yellow-600' :
-                                    'text-red-600'
+                            <div className={`p-4 rounded-lg ${systemStatus.storage === 'healthy' ? 'bg-green-50' :
+                                    systemStatus.storage === 'warning' ? 'bg-yellow-50' :
+                                        'bg-red-50'
                                 }`}>
+                                <div className="flex items-center">
+                                    <div className={`w-3 h-3 rounded-full mr-2 ${systemStatus.storage === 'healthy' ? 'bg-green-500' :
+                                            systemStatus.storage === 'warning' ? 'bg-yellow-500' :
+                                                'bg-red-500'
+                                        }`}></div>
+                                    <span className={`text-sm font-medium ${systemStatus.storage === 'healthy' ? 'text-green-700' :
+                                            systemStatus.storage === 'warning' ? 'text-yellow-700' :
+                                                'text-red-700'
+                                        }`}>文件存儲</span>
+                                </div>
+                                <p className={`text-sm mt-1 ${systemStatus.storage === 'healthy' ? 'text-green-600' :
+                                        systemStatus.storage === 'warning' ? 'text-yellow-600' :
+                                            'text-red-600'
+                                    }`}>
                                     {systemStatus.storage === 'healthy' ? '正常運行' :
-                                     systemStatus.storage === 'warning' ? '容量不足' :
-                                     '存儲失敗'}
+                                        systemStatus.storage === 'warning' ? '容量不足' :
+                                            '存儲失敗'}
                                 </p>
                             </div>
 
                             {/* 郵件服務狀態 */}
-                            <div className={`p-4 rounded-lg ${
-                                systemStatus.emailService === 'healthy' ? 'bg-green-50' :
-                                systemStatus.emailService === 'warning' ? 'bg-yellow-50' :
-                                'bg-red-50'
-                            }`}>
-                                <div className="flex items-center">
-                                    <div className={`w-3 h-3 rounded-full mr-2 ${
-                                        systemStatus.emailService === 'healthy' ? 'bg-green-500' :
-                                        systemStatus.emailService === 'warning' ? 'bg-yellow-500' :
-                                        'bg-red-500'
-                                    }`}></div>
-                                    <span className={`text-sm font-medium ${
-                                        systemStatus.emailService === 'healthy' ? 'text-green-700' :
-                                        systemStatus.emailService === 'warning' ? 'text-yellow-700' :
-                                        'text-red-700'
-                                    }`}>郵件服務</span>
-                                </div>
-                                <p className={`text-sm mt-1 ${
-                                    systemStatus.emailService === 'healthy' ? 'text-green-600' :
-                                    systemStatus.emailService === 'warning' ? 'text-yellow-600' :
-                                    'text-red-600'
+                            <div className={`p-4 rounded-lg ${systemStatus.emailService === 'healthy' ? 'bg-green-50' :
+                                    systemStatus.emailService === 'warning' ? 'bg-yellow-50' :
+                                        'bg-red-50'
                                 }`}>
+                                <div className="flex items-center">
+                                    <div className={`w-3 h-3 rounded-full mr-2 ${systemStatus.emailService === 'healthy' ? 'bg-green-500' :
+                                            systemStatus.emailService === 'warning' ? 'bg-yellow-500' :
+                                                'bg-red-500'
+                                        }`}></div>
+                                    <span className={`text-sm font-medium ${systemStatus.emailService === 'healthy' ? 'text-green-700' :
+                                            systemStatus.emailService === 'warning' ? 'text-yellow-700' :
+                                                'text-red-700'
+                                        }`}>郵件服務</span>
+                                </div>
+                                <p className={`text-sm mt-1 ${systemStatus.emailService === 'healthy' ? 'text-green-600' :
+                                        systemStatus.emailService === 'warning' ? 'text-yellow-600' :
+                                            'text-red-600'
+                                    }`}>
                                     {systemStatus.emailService === 'healthy' ? '正常運行' :
-                                     systemStatus.emailService === 'warning' ? '未配置' :
-                                     '服務失敗'}
+                                        systemStatus.emailService === 'warning' ? '未配置' :
+                                            '服務失敗'}
                                 </p>
                             </div>
                         </div>
@@ -2375,11 +2346,10 @@ export default function AdminPage() {
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                                         <div
-                                            className={`h-2 rounded-full ${
-                                                systemMetrics.cpuUsage > 80 ? 'bg-red-500' :
-                                                systemMetrics.cpuUsage > 60 ? 'bg-orange-500' :
-                                                'bg-blue-500'
-                                            }`}
+                                            className={`h-2 rounded-full ${systemMetrics.cpuUsage > 80 ? 'bg-red-500' :
+                                                    systemMetrics.cpuUsage > 60 ? 'bg-orange-500' :
+                                                        'bg-blue-500'
+                                                }`}
                                             style={{ width: `${systemMetrics.cpuUsage}%` }}
                                         ></div>
                                     </div>
@@ -2392,11 +2362,10 @@ export default function AdminPage() {
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                                         <div
-                                            className={`h-2 rounded-full ${
-                                                systemMetrics.memoryUsage > 85 ? 'bg-red-500' :
-                                                systemMetrics.memoryUsage > 70 ? 'bg-orange-500' :
-                                                'bg-green-500'
-                                            }`}
+                                            className={`h-2 rounded-full ${systemMetrics.memoryUsage > 85 ? 'bg-red-500' :
+                                                    systemMetrics.memoryUsage > 70 ? 'bg-orange-500' :
+                                                        'bg-green-500'
+                                                }`}
                                             style={{ width: `${systemMetrics.memoryUsage}%` }}
                                         ></div>
                                     </div>
@@ -2409,11 +2378,10 @@ export default function AdminPage() {
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                                         <div
-                                            className={`h-2 rounded-full ${
-                                                systemMetrics.storageUsage > 90 ? 'bg-red-500' :
-                                                systemMetrics.storageUsage > 75 ? 'bg-orange-500' :
-                                                'bg-green-500'
-                                            }`}
+                                            className={`h-2 rounded-full ${systemMetrics.storageUsage > 90 ? 'bg-red-500' :
+                                                    systemMetrics.storageUsage > 75 ? 'bg-orange-500' :
+                                                        'bg-green-500'
+                                                }`}
                                             style={{ width: `${systemMetrics.storageUsage}%` }}
                                         ></div>
                                     </div>
@@ -2585,8 +2553,8 @@ export default function AdminPage() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center">
@@ -2728,9 +2696,8 @@ export default function AdminPage() {
                                 {aiErrors.map((error) => (
                                     <div
                                         key={error.id}
-                                        className={`border rounded-lg p-4 ${
-                                            error.resolved ? 'bg-gray-50 opacity-60' : 'bg-white'
-                                        }`}
+                                        className={`border rounded-lg p-4 ${error.resolved ? 'bg-gray-50 opacity-60' : 'bg-white'
+                                            }`}
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">

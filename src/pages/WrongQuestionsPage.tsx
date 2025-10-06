@@ -99,7 +99,11 @@ export default function WrongQuestionsPage() {
 
             if (fetchError) throw fetchError
 
-            setWrongQuestions(data || [])
+            const normalized = (data || []).map((row: any) => ({
+                ...row,
+                question: Array.isArray(row.question) ? row.question[0] : row.question
+            }))
+            setWrongQuestions(normalized)
         } catch (err) {
             console.error('Error fetching wrong questions:', err)
             setError('載入錯題記錄失敗')
@@ -313,9 +317,8 @@ export default function WrongQuestionsPage() {
                         {wrongQuestions.map((wq) => (
                             <div
                                 key={wq.id}
-                                className={`bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow ${
-                                    wq.mastered ? 'opacity-60' : ''
-                                }`}
+                                className={`bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow ${wq.mastered ? 'opacity-60' : ''
+                                    }`}
                             >
                                 <div className="flex items-start gap-4">
                                     <div className="flex-1">
@@ -338,11 +341,10 @@ export default function WrongQuestionsPage() {
                                             </div>
                                             <button
                                                 onClick={() => handleToggleFavorite(wq.question_id)}
-                                                className={`ml-4 p-2 rounded-lg transition-all ${
-                                                    favoriteQuestions.has(wq.question_id)
+                                                className={`ml-4 p-2 rounded-lg transition-all ${favoriteQuestions.has(wq.question_id)
                                                         ? 'text-red-500 bg-red-50 hover:bg-red-100'
                                                         : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
-                                                }`}
+                                                    }`}
                                                 title={favoriteQuestions.has(wq.question_id) ? '取消收藏' : '加入收藏'}
                                             >
                                                 <Heart className={`w-5 h-5 ${favoriteQuestions.has(wq.question_id) ? 'fill-current' : ''}`} />
@@ -360,11 +362,10 @@ export default function WrongQuestionsPage() {
                                                 return (
                                                     <div
                                                         key={option}
-                                                        className={`p-3 rounded-lg border-2 ${
-                                                            isCorrect
+                                                        className={`p-3 rounded-lg border-2 ${isCorrect
                                                                 ? 'border-green-500 bg-green-50'
                                                                 : 'border-gray-200 bg-gray-50'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <span className="font-semibold">{option}.</span> {optionText}
                                                         {isCorrect && (
