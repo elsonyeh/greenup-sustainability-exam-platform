@@ -369,7 +369,7 @@ export default function WrongQuestionsPage() {
                                                             : 'border-gray-200 bg-gray-50'
                                                             }`}
                                                     >
-                                                        <span className="font-semibold">{option}.</span> {optionText}
+                                                        <span className="font-semibold">{option}.</span> {String(optionText)}
                                                         {isCorrect && (
                                                             <span className="ml-2 text-green-600 font-semibold">✓ 正確答案</span>
                                                         )}

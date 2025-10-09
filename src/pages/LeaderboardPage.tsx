@@ -278,20 +278,70 @@ export default function LeaderboardPage() {
                 </div>
             ) : (
                 <>
+                    {/* 頂部三名 - 重新排序：第二名、第一名、第三名 */}
                     <div className="grid md:grid-cols-3 gap-6">
-                        {currentData.slice(0, 3).map((user, index) => {
+                        {[
+                            currentData.find(u => u.rank === 2),
+                            currentData.find(u => u.rank === 1),
+                            currentData.find(u => u.rank === 3)
+                        ].map((user, index) => {
+                            // 確定該位置應該顯示的排名
+                            const placeholderRank = index === 0 ? 2 : index === 1 ? 1 : 3
+
+                            // 如果沒有該排名的用戶，顯示空框架
+                            if (!user) {
+                                return (
+                                    <div
+                                        key={`placeholder-${placeholderRank}`}
+                                        className={`card text-center relative ${
+                                            placeholderRank === 1 ? 'border-yellow-200 bg-gradient-to-b from-yellow-50 to-white md:-mt-4' :
+                                            placeholderRank === 2 ? 'border-gray-200 bg-gradient-to-b from-gray-50 to-white' :
+                                            'border-orange-200 bg-gradient-to-b from-orange-50 to-white'
+                                        } opacity-50`}
+                                    >
+                                        <div className="pt-8 pb-6 px-4">
+                                            {/* 排名圖標 */}
+                                            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+                                                {getRankIcon(placeholderRank)}
+                                            </div>
+
+                                            {/* 空頭像 */}
+                                            <div className="mt-4 mb-4">
+                                                <div className={`w-16 h-16 rounded-full mx-auto border-4 border-white shadow-lg flex items-center justify-center ${
+                                                    placeholderRank === 1 ? 'bg-yellow-300' :
+                                                    placeholderRank === 2 ? 'bg-gray-300' :
+                                                    'bg-orange-400'
+                                                }`}>
+                                                    <span className="text-white text-2xl">?</span>
+                                                </div>
+                                            </div>
+
+                                            {/* 空信息 */}
+                                            <h3 className="font-bold text-lg text-gray-400 mb-2">虛位以待</h3>
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <p className="text-3xl font-bold text-gray-300">---</p>
+                                                    <p className="text-sm text-gray-400">總分</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            }
+
                             const actualRank = user.rank
                             return (
                                 <div
                                     key={user.rank}
-                                    className={`card text-center relative overflow-visible ${actualRank === 1 ? 'border-yellow-200 bg-gradient-to-b from-yellow-50 to-white' :
+                                    className={`card text-center relative ${
+                                        actualRank === 1 ? 'border-yellow-200 bg-gradient-to-b from-yellow-50 to-white md:-mt-4' :
                                         actualRank === 2 ? 'border-gray-200 bg-gradient-to-b from-gray-50 to-white' :
-                                            'border-orange-200 bg-gradient-to-b from-orange-50 to-white'
-                                        } ${index === 1 ? 'md:-mt-4' : ''}`}
+                                        'border-orange-200 bg-gradient-to-b from-orange-50 to-white'
+                                    }`}
                                 >
-                                    <div className="card-content pt-8">
-                                        {/* 排名圖標 */}
-                                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                                    <div className="pt-8 pb-6 px-4">
+                                        {/* 排名圖標 - 增加 z-index 確保在最上層 */}
+                                        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
                                             {getRankIcon(actualRank)}
                                         </div>
 
@@ -304,10 +354,11 @@ export default function LeaderboardPage() {
                                                     alt={user.name}
                                                 />
                                             ) : (
-                                                <div className={`w-16 h-16 rounded-full mx-auto border-4 border-white shadow-lg flex items-center justify-center text-white font-bold text-xl ${actualRank === 1 ? 'bg-yellow-500' :
+                                                <div className={`w-16 h-16 rounded-full mx-auto border-4 border-white shadow-lg flex items-center justify-center text-white font-bold text-xl ${
+                                                    actualRank === 1 ? 'bg-yellow-500' :
                                                     actualRank === 2 ? 'bg-gray-400' :
-                                                        'bg-orange-600'
-                                                    }`}>
+                                                    'bg-orange-600'
+                                                }`}>
                                                     {user.name.charAt(0)}
                                                 </div>
                                             )}
